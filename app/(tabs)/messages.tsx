@@ -9,7 +9,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useSMSData } from "../../hooks/useSMSData";
 
 export default function MessagesTab() {
-  const { messages, loading, loadBankMessages } = useSMSData();
+  const { messages, loading, loadBankMessages, forceRefresh, processing } =
+    useSMSData();
 
   const renderTransactionItem = ({ item }) => (
     <View style={styles.item}>
@@ -62,12 +63,36 @@ export default function MessagesTab() {
             {loading ? "Loading..." : "Refresh"}
           </Text>
         </TouchableOpacity>
-      </View>
 
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={forceRefresh}
+          disabled={loading}
+        >
+          <Text style={styles.refreshButtonText}>
+            {loading ? "Loading..." : "clear cache"}
+          </Text>
+        </TouchableOpacity>
+      </View>
       <Text style={styles.subtitle}>
         Found {messages.length} bank transaction messages
       </Text>
-
+      // Add this inside your component's return, above the FlatList
+      {(loading || processing) && (
+        <View
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: "rgba(255,255,255,0.7)",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 10,
+          }}
+        >
+          <Text style={{ fontSize: 18, fontWeight: "bold" }}>
+            Processing...
+          </Text>
+        </View>
+      )}
       <FlatList
         data={messages}
         keyExtractor={(item) =>

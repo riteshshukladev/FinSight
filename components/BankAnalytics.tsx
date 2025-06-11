@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BarChart, LineChart, PieChart } from "react-native-chart-kit";
@@ -5,8 +6,8 @@ import { BarChart, LineChart, PieChart } from "react-native-chart-kit";
 const { width: screenWidth } = Dimensions.get("window");
 
 // Calculate chart width accounting for all padding and margins
-const CONTAINER_PADDING = 16; // Main container padding
-const CHART_CONTAINER_PADDING = 16; // Chart container padding
+const CONTAINER_PADDING = 16;
+const CHART_CONTAINER_PADDING = 16;
 const CHART_WIDTH =
   screenWidth - CONTAINER_PADDING * 2 - CHART_CONTAINER_PADDING * 2;
 
@@ -22,12 +23,8 @@ const CHART_COLORS = [
   "#4ECDC4",
 ];
 
-const getRandomColor = () => {
-  return CHART_COLORS[Math.floor(Math.random() * CHART_COLORS.length)];
-};
-
 const BankAnalytics = ({ transactions = [] }) => {
-  // Calculate analytics data with better error handling
+  // Calculate analytics data with AI-processed transactions
   const analytics = useMemo(() => {
     if (!Array.isArray(transactions) || transactions.length === 0) {
       return {
@@ -43,6 +40,8 @@ const BankAnalytics = ({ transactions = [] }) => {
         categoryData: [],
         weeklyTrend: [],
         topMerchants: [],
+        categoryBreakdown: [],
+        confidenceScore: 0,
       };
     }
 
@@ -50,27 +49,34 @@ const BankAnalytics = ({ transactions = [] }) => {
     let totalDebit = 0;
     let creditCount = 0;
     let debitCount = 0;
+    let totalConfidence = 0;
     const monthlyStats = {};
     const categoryStats = {};
     const dailyStats = {};
+    const merchantStats = {};
 
-    // Process transactions with better error handling
+    // Process AI-classified transactions
     transactions.forEach((transaction) => {
       try {
-        // Ensure we have valid data
         if (!transaction || typeof transaction !== "object") return;
 
         const amount = Math.abs(parseFloat(transaction.amount) || 0);
-        if (amount === 0) return; // Skip zero amount transactions
+        if (amount === 0) return;
 
         const date = transaction.date ? new Date(transaction.date) : new Date();
-        if (isNaN(date.getTime())) return; // Skip invalid dates
+        if (isNaN(date.getTime())) return;
 
         const monthKey = `${date.getFullYear()}-${String(
           date.getMonth() + 1
         ).padStart(2, "0")}`;
         const dayKey = date.toISOString().split("T")[0];
         const transactionType = (transaction.type || "DEBIT").toUpperCase();
+        const category = transaction.category || "Others";
+        const merchant = transaction.merchant || "Unknown";
+        const confidence = transaction.confidence || 0.5;
+
+        // Add to confidence tracking
+        totalConfidence += confidence;
 
         // Process credit/debit
         if (transactionType === "CREDIT") {
@@ -95,24 +101,33 @@ const BankAnalytics = ({ transactions = [] }) => {
         monthlyStats[monthKey].net =
           monthlyStats[monthKey].credit - monthlyStats[monthKey].debit;
 
-        // Category/Merchant data
-        const merchant = (
-          transaction.merchant ||
-          transaction.description ||
-          "Others"
-        ).trim();
-        if (!categoryStats[merchant]) {
-          categoryStats[merchant] = { credit: 0, debit: 0, count: 0, total: 0 };
+        // Category data (for spending analysis)
+        if (!categoryStats[category]) {
+          categoryStats[category] = { credit: 0, debit: 0, count: 0, total: 0 };
         }
 
         if (transactionType === "CREDIT") {
-          categoryStats[merchant].credit += amount;
+          categoryStats[category].credit += amount;
         } else {
-          categoryStats[merchant].debit += amount;
+          categoryStats[category].debit += amount;
         }
-        categoryStats[merchant].count++;
-        categoryStats[merchant].total =
-          categoryStats[merchant].credit + categoryStats[merchant].debit;
+        categoryStats[category].count++;
+        categoryStats[category].total += amount;
+
+        // Merchant data
+        if (merchant !== "Unknown") {
+          if (!merchantStats[merchant]) {
+            merchantStats[merchant] = { credit: 0, debit: 0, count: 0, total: 0 };
+          }
+
+          if (transactionType === "CREDIT") {
+            merchantStats[merchant].credit += amount;
+          } else {
+            merchantStats[merchant].debit += amount;
+          }
+          merchantStats[merchant].count++;
+          merchantStats[merchant].total += amount;
+        }
 
         // Daily data for weekly trend
         if (!dailyStats[dayKey]) {
@@ -144,18 +159,27 @@ const BankAnalytics = ({ transactions = [] }) => {
         net: Math.round(data.net),
       }));
 
-    // Prepare category data for pie chart (top 8 categories)
+    // Prepare category data for pie chart (top 8 categories by spending)
     const categoryData = Object.entries(categoryStats)
-      .filter(([, data]) => data.total > 0)
-      .sort(([, a], [, b]) => b.total - a.total)
+      .filter(([, data]) => data.debit > 0) // Only show spending categories
+      .sort(([, a], [, b]) => b.debit - a.debit)
       .slice(0, 8)
       .map(([category, data], index) => ({
-        name:
-          category.length > 15 ? category.substring(0, 15) + "..." : category,
-        population: Math.round(data.total),
+        name: category.length > 15 ? category.substring(0, 15) + "..." : category,
+        population: Math.round(data.debit),
         color: CHART_COLORS[index % CHART_COLORS.length],
         legendFontColor: "#7F7F7F",
         legendFontSize: 12,
+      }));
+
+    // Category breakdown for detailed view
+    const categoryBreakdown = Object.entries(categoryStats)
+      .sort(([, a], [, b]) => b.total - a.total)
+      .slice(0, 10)
+      .map(([category, data]) => ({
+        category,
+        ...data,
+        percentage: ((data.total / (totalCredit + totalDebit)) * 100).toFixed(1),
       }));
 
     // Prepare weekly trend data (last 7 days)
@@ -171,7 +195,7 @@ const BankAnalytics = ({ transactions = [] }) => {
       }));
 
     // Top merchants
-    const topMerchants = Object.entries(categoryStats)
+    const topMerchants = Object.entries(merchantStats)
       .sort(([, a], [, b]) => b.count - a.count)
       .slice(0, 5)
       .map(([merchant, data]) => [merchant, data]);
@@ -183,13 +207,14 @@ const BankAnalytics = ({ transactions = [] }) => {
       transactionCount: transactions.length,
       creditCount,
       debitCount,
-      averageCredit:
-        creditCount > 0 ? Math.round(totalCredit / creditCount) : 0,
+      averageCredit: creditCount > 0 ? Math.round(totalCredit / creditCount) : 0,
       averageDebit: debitCount > 0 ? Math.round(totalDebit / debitCount) : 0,
       monthlyData,
       categoryData,
       weeklyTrend,
       topMerchants,
+      categoryBreakdown,
+      confidenceScore: transactions.length > 0 ? (totalConfidence / transactions.length) : 0,
     };
   }, [transactions]);
 
@@ -282,6 +307,25 @@ const BankAnalytics = ({ transactions = [] }) => {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* AI Confidence Indicator */}
+      <View style={styles.aiIndicator}>
+        <Text style={styles.aiText}>
+          AI Classification Confidence: {(analytics.confidenceScore * 100).toFixed(1)}%
+        </Text>
+        <View style={styles.confidenceBar}>
+          <View 
+            style={[
+              styles.confidenceFill, 
+              { 
+                width: `${analytics.confidenceScore * 100}%`,
+                backgroundColor: analytics.confidenceScore > 0.8 ? '#4CAF50' : 
+                                analytics.confidenceScore > 0.6 ? '#FF9800' : '#F44336'
+              }
+            ]} 
+          />
+        </View>
+      </View>
+
       {/* Header Stats */}
       <View style={styles.headerStats}>
         <View style={styles.statCard}>
@@ -369,6 +413,33 @@ const BankAnalytics = ({ transactions = [] }) => {
         />
       </View>
 
+      {/* Category Breakdown */}
+      {analytics.categoryBreakdown.length > 0 && (
+        <View style={styles.categorySection}>
+          <Text style={styles.sectionTitle}>Category Breakdown</Text>
+          {analytics.categoryBreakdown.map((cat, index) => (
+            <View key={`${cat.category}-${index}`} style={styles.categoryCard}>
+              <View style={styles.categoryInfo}>
+                <Text style={styles.categoryName}>{cat.category}</Text>
+                <Text style={styles.categoryPercentage}>{cat.percentage}%</Text>
+              </View>
+              <View style={styles.categoryAmounts}>
+                {cat.debit > 0 && (
+                  <Text style={styles.categoryDebit}>
+                    Spent: ₹{cat.debit.toLocaleString("en-IN")}
+                  </Text>
+                )}
+                {cat.credit > 0 && (
+                  <Text style={styles.categoryCredit}>
+                    Received: ₹{cat.credit.toLocaleString("en-IN")}
+                  </Text>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* Quick Stats */}
       <View style={styles.quickStats}>
         <Text style={styles.sectionTitle}>Quick Insights</Text>
@@ -385,6 +456,16 @@ const BankAnalytics = ({ transactions = [] }) => {
           <Text style={styles.insightValue}>
             ₹{analytics.averageDebit.toLocaleString("en-IN")}
           </Text>
+        </View>
+
+        <View style={styles.insightCard}>
+          <Text style={styles.insightLabel}>Credit Transactions</Text>
+          <Text style={styles.insightValue}>{analytics.creditCount}</Text>
+        </View>
+
+        <View style={styles.insightCard}>
+          <Text style={styles.insightLabel}>Debit Transactions</Text>
+          <Text style={styles.insightValue}>{analytics.debitCount}</Text>
         </View>
       </View>
 
