@@ -6,11 +6,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useSMSData } from "../../hooks/useSMSData";
+import { useSMSDataContext } from "../../hooks/SMSDataContext";
 
 export default function MessagesTab() {
   const { messages, loading, loadBankMessages, forceRefresh, processing } =
-    useSMSData();
+    useSMSDataContext();
 
   const renderTransactionItem = ({ item }) => (
     <View style={styles.item}>
@@ -77,7 +77,6 @@ export default function MessagesTab() {
       <Text style={styles.subtitle}>
         Found {messages.length} bank transaction messages
       </Text>
-      // Add this inside your component's return, above the FlatList
       {(loading || processing) && (
         <View
           style={{

@@ -22,38 +22,36 @@ const STORAGE_KEYS = {
 // AI prompt for message classification
 // ...existing code...
 const AI_CLASSIFICATION_PROMPT = `
-Analyze the following SMS messages and classify ONLY those that are actual transaction alerts from a recognized bank or financial institution (not promotional, spam, or offers). 
-Ignore all messages that are not from a bank or do not contain a clear transaction (credit/debit) alert. 
-Do NOT include messages from credit card companies, loan offers, insurance, ISP or any sender that is not a bank.
+You are an SMS classifier. Return ONLY genuine bank account transaction alerts.
 
-For each message that IS financial/banking related, extract the following information:
+MUST CONTAIN ALL 4:
+1. "A/c" OR "Account" 
+2. "debited" OR "credited"
+3. "Rs." + amount
+4. Bank signature ending like "-SBI", "-HDFC", "-ICICI"
 
-1. type: "CREDIT" or "DEBIT"
-2. amount: numerical value (without currency symbols)
-3. balance: available balance if mentioned
-4. merchant: merchant/vendor name
-5. card: card number (usually last 4 digits)
-6. category: spending category (food, shopping, utilities, etc.)
-7. Most important, it should be a message from a bank or financial institution, specifically banks, not a promotional message, check wisely.
+VALID EXAMPLES:
+- "A/c XX1234 debited Rs. 500 at ATM -SBI"
+- "Account ****5678 credited Rs. 1000 salary -HDFC Bank"
 
-Return a JSON array with only the financial messages in this exact format:
+REJECT: Credit cards, UPI apps, OTPs, promotions, balance inquiries, loans
+
+For each VALID message, return JSON with originalMessage field containing the EXACT full message text:
+
 [
   {
     "isFinancial": true,
-    "type": "CREDIT|DEBIT",
-    "amount": "1000.00",
-    "balance": "5000.00",
-    "merchant": "Amazon",
-    "card": "xxxx1234",
-    "category": "Shopping",
-    "originalMessage": "full original message text",
-    "confidence": 0.95
+    "type": "DEBIT",
+    "amount": "500.00",
+    "account": "1234",
+    "originalMessage": "EXACT_FULL_MESSAGE_TEXT_HERE",
+    "confidence": 0.9
   }
 ]
 
-If no financial messages are found, return an empty array [].
+Return [] if no valid messages found.
 
-Messages to analyze:
+MESSAGES:
 `;
 
 export const useSMSData = () => {
@@ -116,98 +114,110 @@ export const useSMSData = () => {
     }
   };
 
-  // AI Classification function
-  const classifyMessagesWithAI = async (rawMessages) => {
-    try {
-      setProcessing(true);
+// Fixed AI Classification function
+const classifyMessagesWithAI = async (rawMessages) => {
+  try {
+    setProcessing(true);
+    
+    // Filter out already processed messages
+    const storedHashes = await getStoredHashes();
+    const newMessages = rawMessages.filter(msg => 
+      !storedHashes.includes(getMessageHash(msg))
+    );
+
+    if (newMessages.length === 0) {
+      console.log('No new messages to process');
+      return [];
+    }
+
+    // Process in smaller batches for better accuracy
+    const batchSize = 5; // Reduced batch size
+    const allClassifiedMessages = [];
+
+    for (let i = 0; i < newMessages.length; i += batchSize) {
+      const batch = newMessages.slice(i, i + batchSize);
       
-      // Filter out already processed messages
-      const storedHashes = await getStoredHashes();
-      const newMessages = rawMessages.filter(msg => 
-        !storedHashes.includes(getMessageHash(msg))
-      );
+      // Format messages with clear numbering for AI to reference
+      const messagesToAnalyze = batch.map((msg, index) => 
+        `MESSAGE ${index + 1}:\nSender: ${msg.address}\nContent: ${msg.body}\n---\n`
+      ).join('');
 
-      if (newMessages.length === 0) {
-        console.log('No new messages to process');
-        return [];
-      }
+      const fullPrompt = AI_CLASSIFICATION_PROMPT + messagesToAnalyze;
 
-      // Prepare messages for AI analysis (process in batches of 20)
-      const batchSize = 10;
-      const allClassifiedMessages = [];
-
-      for (let i = 0; i < newMessages.length; i += batchSize) {
-        const batch = newMessages.slice(i, i + batchSize);
-        const messagesToAnalyze = batch.map((msg, index) => 
-          `${index + 1}. From: ${msg.address}\nMessage: ${msg.body}\n---`
-        ).join('\n');
-
-        const fullPrompt = AI_CLASSIFICATION_PROMPT + messagesToAnalyze;
-
-        try {
-          // Replace this with your actual AI service call
-          // For demo purposes, I'll show the structure
-          const response = await callAIService(fullPrompt);
-          
-          if (response && Array.isArray(response)) {
-            // Map AI results back to original messages
-            const batchResults = response.map((aiResult, index) => {
-              const originalMessage = batch[index];
+      try {
+        console.log(`Processing batch ${Math.floor(i/batchSize) + 1}, messages ${i+1} to ${Math.min(i+batchSize, newMessages.length)}`);
+        
+        const response = await callAIService(fullPrompt);
+        
+        console.log('AI Response for batch:', response);
+        
+        if (response && Array.isArray(response) && response.length > 0) {
+          // Process each AI result
+          const batchResults = response.map((aiResult) => {
+            // Find matching original message by comparing content
+            const matchingMessage = batch.find(msg => 
+              msg.body.includes(aiResult.originalMessage?.substring(0, 50)) ||
+              aiResult.originalMessage?.includes(msg.body.substring(0, 50))
+            );
+            
+            if (matchingMessage && aiResult.isFinancial) {
               return {
-                ...originalMessage,
+                ...matchingMessage,
                 ...aiResult,
-                date: new Date(parseInt(originalMessage.date)),
-                id: `${originalMessage.address}_${originalMessage.date}`,
-                hash: getMessageHash(originalMessage),
+                date: new Date(parseInt(matchingMessage.date)),
+                id: `${matchingMessage.address}_${matchingMessage.date}`,
+                hash: getMessageHash(matchingMessage),
                 processedAt: new Date().toISOString(),
               };
-            });
+            }
+            return null;
+          }).filter(Boolean); // Remove null entries
 
-            allClassifiedMessages.push(...batchResults.filter(msg => msg.isFinancial));
-          }
-        } catch (batchError) {
-          console.error('Error processing batch:', batchError);
+          allClassifiedMessages.push(...batchResults);
         }
-          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 seconds
-
+        
+      } catch (batchError) {
+        console.error('Error processing batch:', batchError);
       }
-
-      // Update stored hashes
-      const allHashes = [...storedHashes, ...newMessages.map(getMessageHash)];
-      await saveMessageHashes(allHashes);
-
-      return allClassifiedMessages;
-    } catch (error) {
-      console.error('Error in AI classification:', error);
-      return [];
-    } finally {
-      setProcessing(false);
+      
+      // Add delay between batches
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
-  };
 
-  // Mock AI service call - replace with your actual AI service
-  // Mock AI service call - replace with your actual AI service
+    // Update stored hashes
+    const allHashes = [...storedHashes, ...newMessages.map(getMessageHash)];
+    await saveMessageHashes(allHashes);
+
+    console.log(`Found ${allClassifiedMessages.length} financial messages out of ${newMessages.length} new messages`);
+    return allClassifiedMessages;
+    
+  } catch (error) {
+    console.error('Error in AI classification:', error);
+    return [];
+  } finally {
+    setProcessing(false);
+  }
+};
+
+
+// Enhanced callAIService with better error handling
 const callAIService = async (prompt) => {
   try {
     const API_KEY = "AIzaSyAxUV2eIEt2hr4-iUHKXmZ1K3ePen3nqck"; 
-    const MODEL_ID = "gemini-2.0-flash"; // Replace with the correct Gemini model ID
+    const MODEL_ID = "gemini-2.5-flash-preview-05-20"; // Use stable version
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:generateContent?key=${API_KEY}`;
 
-    // Construct the request body for text-only analysis
     const requestBody = {
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: prompt
-            }
-          ],
-        },
-      ],
+      contents: [{
+        role: "user",
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        temperature: 0.1, // Lower temperature for more consistent results
+        maxOutputTokens: 2048,
+      }
     };
 
-    // Make the API request
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
@@ -216,39 +226,58 @@ const callAIService = async (prompt) => {
       body: JSON.stringify(requestBody),
     });
 
-    // Check if the response is OK (status 200-299)
     if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
     }
 
     const data = await response.json();
-
-    console.log('Gemini API Response:', data);
-
-    // Return the first candidate's response (assuming it exists)
+    
     if (data.candidates && data.candidates.length > 0) {
       const responseText = data.candidates[0].content.parts[0].text;
       
+      console.log('Raw AI Response:', responseText);
+      
       try {
-        // Try to parse the response as JSON since we expect a JSON array
-        const cleanedText = responseText
-          .replace(/```json\s*/g, "") // Remove "```json" block start
-          .replace(/```/g, "") // Remove "```" block end
-          .trim(); // Remove leading/trailing spaces
+        // Clean the response text
+        const cleaned = responseText
+          .replace(/```json\s*/gi, "")
+          .replace(/```\s*/g, "")
+          .replace(/^\s*[\[\{]/, match => match.trim())
+          .replace(/[\]\}]\s*$/, match => match.trim())
+          .trim();
         
-        const parsedResponse = JSON.parse(cleanedText);
-        return parsedResponse;
+        // Try to parse as JSON
+        let parsed;
+        if (cleaned.startsWith('[')) {
+          parsed = JSON.parse(cleaned);
+        } else if (cleaned.startsWith('{')) {
+          parsed = [JSON.parse(cleaned)];
+        } else {
+          // Try to extract JSON from text
+          const jsonMatch = cleaned.match(/\[[\s\S]*\]/) || cleaned.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            parsed = JSON.parse(jsonMatch[0]);
+            if (!Array.isArray(parsed)) parsed = [parsed];
+          } else {
+            throw new Error('No valid JSON found in response');
+          }
+        }
+        
+        console.log('Parsed AI Response:', parsed);
+        return Array.isArray(parsed) ? parsed : [parsed];
+        
       } catch (parseError) {
-        console.error("Error parsing JSON response:", parseError);
-        console.log("Raw response:", responseText);
-        return []; // Return empty array if parsing fails
+        console.error("JSON parsing failed:", parseError);
+        console.log("Cleaned response:", cleaned);
+        return [];
       }
     } else {
-      throw new Error("No candidates returned from the Gemini API.");
+      throw new Error("No candidates in API response");
     }
   } catch (error) {
-    console.error("Error calling Gemini AI service:", error);
-    throw new Error(`Gemini AI Service Error: ${error.message}`);
+    console.error("AI service error:", error);
+    return [];
   }
 };
 
@@ -283,53 +312,65 @@ const callAIService = async (prompt) => {
   };
 
   // Process and classify messages
-  const processMessages = async (forceRefresh = false) => {
-    try {
-      // Load existing processed messages first
-      if (!forceRefresh) {
-        await loadProcessedMessages();
-      }
-
-      console.log(`reached LoadAllMessages`);
-
-      // Get all raw messages
-      const rawMessages = await loadAllMessages();
-      const safeRawMessages = Array.isArray(rawMessages) ? rawMessages : [];
-
-      console.log(`passed LoadAllMessages`);
-      if (safeRawMessages.length === 0) {
-        console.log('No messages found');
-        return;
-      }
-      console.log(`reachead LoadMessages`);
-
-      // Classify with AI
-      const newClassifiedMessages = await classifyMessagesWithAI(safeRawMessages);
-      console.log("reached ai classification");
-      
-      if (newClassifiedMessages.length > 0) {
-        // Merge with existing messages
-        const existingMessages = forceRefresh ? [] : await loadProcessedMessages();
-        const allMessages = [...existingMessages, ...newClassifiedMessages];
-        
-        // Remove duplicates based on hash
-        const uniqueMessages = allMessages.filter((msg, index, self) => 
-          index === self.findIndex(m => m.hash === msg.hash)
-        );
-
-        // Sort by date (newest first)
-        uniqueMessages.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        // Save and update state
-        await saveProcessedMessages(uniqueMessages);
-        setMessages(uniqueMessages);
-        
-        console.log(`Processed ${newClassifiedMessages.length} new financial messages`);
-      }
-    } catch (error) {
-      console.error('Error processing messages:', error);
+ // Add this to your processMessages function for debugging
+const processMessages = async (forceRefresh = false) => {
+  try {
+    if (!forceRefresh) {
+      await loadProcessedMessages();
     }
-  };
+
+    console.log('=== STARTING SMS PROCESSING ===');
+
+    const rawMessages = await loadAllMessages();
+    const safeRawMessages = Array.isArray(rawMessages) ? rawMessages : [];
+
+    console.log(`Total SMS messages loaded: ${safeRawMessages.length}`);
+    
+    // Log sample messages to see what we're working with
+    if (safeRawMessages.length > 0) {
+      console.log('Sample messages:');
+      safeRawMessages.slice(0, 3).forEach((msg, i) => {
+        console.log(`${i+1}. From: ${msg.address}`);
+        console.log(`   Body: ${msg.body.substring(0, 100)}...`);
+      });
+    }
+
+    if (safeRawMessages.length === 0) {
+      console.log('No messages found');
+      return;
+    }
+
+    const newClassifiedMessages = await classifyMessagesWithAI(safeRawMessages);
+    console.log(`=== AI CLASSIFICATION COMPLETE ===`);
+    console.log(`Found ${newClassifiedMessages.length} financial messages`);
+    
+    // Log the classified messages
+    newClassifiedMessages.forEach((msg, i) => {
+      console.log(`Financial Message ${i+1}:`);
+      console.log(`  Type: ${msg.type}, Amount: ${msg.amount}`);
+      console.log(`  Original: ${msg.originalMessage?.substring(0, 80)}...`);
+    });
+    
+    if (newClassifiedMessages.length > 0) {
+      const existingMessages = forceRefresh ? [] : await loadProcessedMessages();
+      const allMessages = [...existingMessages, ...newClassifiedMessages];
+      
+      const uniqueMessages = allMessages.filter((msg, index, self) => 
+        index === self.findIndex(m => m.hash === msg.hash)
+      );
+
+      uniqueMessages.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      await saveProcessedMessages(uniqueMessages);
+      setMessages(uniqueMessages);
+      
+      console.log(`=== FINAL RESULT ===`);
+      console.log(`Total unique financial messages: ${uniqueMessages.length}`);
+    }
+  } catch (error) {
+    console.error('Error processing messages:', error);
+  }
+};
 
   // Initialize on permission grant
   useEffect(() => {
