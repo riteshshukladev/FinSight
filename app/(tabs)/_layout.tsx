@@ -1,8 +1,13 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { Platform } from "react-native";
+import { useFonts, Lexend_400Regular } from "@expo-google-fonts/lexend";
 
 export default function TabLayout() {
+  let [fontsLoaded, fontError] = useFonts({
+    Lexend_400Regular,
+  });
+
   return (
     <Tabs
       screenOptions={{
@@ -32,8 +37,13 @@ export default function TabLayout() {
         options={{
           title: "Analytics",
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="analytics" size={size} color={color} />
+            <MaterialIcons name="analytics" size={24} color={color} />
           ),
+          tabBarLabelStyle: {
+            fontFamily: "Lexend_400Regular",
+            fontSize: 10,
+            fontWeight: "500",
+          },
         }}
       />
       <Tabs.Screen
@@ -41,8 +51,13 @@ export default function TabLayout() {
         options={{
           title: "Messages",
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="message" size={size} color={color} />
+            <MaterialIcons name="message" size={24} color={color} />
           ),
+          tabBarLabelStyle: {
+            fontFamily: "Lexend_400Regular",
+            fontSize: 10,
+            fontWeight: "500",
+          },
         }}
       />
     </Tabs>

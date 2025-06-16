@@ -1,13 +1,21 @@
-
-import React, { useMemo } from "react";
-import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useMemo, useEffect } from "react";
+import {
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useColorScheme,
+  Platform,
+} from "react-native";
+import { useFonts, Lexend_400Regular } from "@expo-google-fonts/lexend";
 import { BarChart, LineChart, PieChart } from "react-native-chart-kit";
 
 const { width: screenWidth } = Dimensions.get("window");
 
 // Calculate chart width accounting for all padding and margins
-const CONTAINER_PADDING = 16;
-const CHART_CONTAINER_PADDING = 16;
+const CONTAINER_PADDING = 4;
+const CHART_CONTAINER_PADDING = 4;
 const CHART_WIDTH =
   screenWidth - CONTAINER_PADDING * 2 - CHART_CONTAINER_PADDING * 2;
 
@@ -24,10 +32,20 @@ const CHART_COLORS = [
 ];
 
 const BankAnalytics = ({ transactions = [] }) => {
+  let [fontsLoaded, fontError] = useFonts({
+    Lexend_400Regular,
+  });
+
+  // Make sure this is uncommented and working
+
+  const colorScheme = useColorScheme();
+  let isDark = colorScheme === "dark";
+
   // Calculate analytics data with AI-processed transactions
   const analytics = useMemo(() => {
     if (!Array.isArray(transactions) || transactions.length === 0) {
       return {
+        recentTransactions: [],
         totalCredit: 0,
         totalDebit: 0,
         netBalance: 0,
@@ -117,7 +135,12 @@ const BankAnalytics = ({ transactions = [] }) => {
         // Merchant data
         if (merchant !== "Unknown") {
           if (!merchantStats[merchant]) {
-            merchantStats[merchant] = { credit: 0, debit: 0, count: 0, total: 0 };
+            merchantStats[merchant] = {
+              credit: 0,
+              debit: 0,
+              count: 0,
+              total: 0,
+            };
           }
 
           if (transactionType === "CREDIT") {
@@ -165,10 +188,11 @@ const BankAnalytics = ({ transactions = [] }) => {
       .sort(([, a], [, b]) => b.debit - a.debit)
       .slice(0, 8)
       .map(([category, data], index) => ({
-        name: category.length > 15 ? category.substring(0, 15) + "..." : category,
+        name:
+          category.length > 15 ? category.substring(0, 15) + "..." : category,
         population: Math.round(data.debit),
         color: CHART_COLORS[index % CHART_COLORS.length],
-        legendFontColor: "#7F7F7F",
+        legendFontColor: isDark ? "#ccc" : "#7F7F7F",
         legendFontSize: 12,
       }));
 
@@ -179,7 +203,9 @@ const BankAnalytics = ({ transactions = [] }) => {
       .map(([category, data]) => ({
         category,
         ...data,
-        percentage: ((data.total / (totalCredit + totalDebit)) * 100).toFixed(1),
+        percentage: ((data.total / (totalCredit + totalDebit)) * 100).toFixed(
+          1
+        ),
       }));
 
     // Prepare weekly trend data (last 7 days)
@@ -200,29 +226,53 @@ const BankAnalytics = ({ transactions = [] }) => {
       .slice(0, 5)
       .map(([merchant, data]) => [merchant, data]);
 
+    const recentTransactions = transactions
+      .slice() // Create copy to avoid mutating original
+      .sort((a, b) => new Date(b.date) - new Date(a.date)) // Sort by date desc
+      .slice(0, 8) // Get last 10 transactions
+      .map((transaction, index) => ({
+        ...transaction,
+        displayDate: new Date(transaction.date).toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }),
+        displayAmount: Math.abs(parseFloat(transaction.amount) || 0),
+        displayAccount: `****${transaction.account?.slice(-4) || "0000"}`,
+        confidencePercentage: ((transaction.confidence || 0.5) * 100).toFixed(
+          1
+        ),
+      }));
+
     return {
+      recentTransactions,
       totalCredit: Math.round(totalCredit),
       totalDebit: Math.round(totalDebit),
       netBalance: Math.round(totalCredit - totalDebit),
       transactionCount: transactions.length,
       creditCount,
       debitCount,
-      averageCredit: creditCount > 0 ? Math.round(totalCredit / creditCount) : 0,
+      averageCredit:
+        creditCount > 0 ? Math.round(totalCredit / creditCount) : 0,
       averageDebit: debitCount > 0 ? Math.round(totalDebit / debitCount) : 0,
       monthlyData,
       categoryData,
       weeklyTrend,
       topMerchants,
       categoryBreakdown,
-      confidenceScore: transactions.length > 0 ? (totalConfidence / transactions.length) : 0,
+      confidenceScore:
+        transactions.length > 0 ? totalConfidence / transactions.length : 0,
     };
-  }, [transactions]);
+  }, [transactions, isDark]);
 
   // Chart configurations
   const chartConfig = {
-    backgroundGradientFrom: "#ffffff",
-    backgroundGradientTo: "#ffffff",
-    color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`,
+    backgroundGradientFrom: isDark ? "#1e1e1e" : "#ffffff",
+    backgroundGradientTo: isDark ? "#1e1e1e" : "#ffffff",
+    color: (opacity = 1) =>
+      isDark
+        ? `rgba(99, 179, 237, ${opacity})`
+        : `rgba(33, 150, 243, ${opacity})`,
     strokeWidth: 2,
     barPercentage: 0.7,
     useShadowColorFromDataset: false,
@@ -234,7 +284,7 @@ const BankAnalytics = ({ transactions = [] }) => {
     },
     propsForBackgroundLines: {
       strokeDasharray: "",
-      stroke: "#e3e3e3",
+      stroke: isDark ? "#444" : "#e3e3e3",
     },
     style: {
       borderRadius: 16,
@@ -300,50 +350,65 @@ const BankAnalytics = ({ transactions = [] }) => {
             name: "No Data",
             population: 100,
             color: "#E0E0E0",
-            legendFontColor: "#7F7F7F",
+            legendFontColor: isDark ? "#ccc" : "#7F7F7F",
             legendFontSize: 12,
           },
         ];
 
+  // Test component to verify font works with number
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* AI Confidence Indicator */}
-      <View style={styles.aiIndicator}>
-        <Text style={styles.aiText}>
-          AI Classification Confidence: {(analytics.confidenceScore * 100).toFixed(1)}%
-        </Text>
-        <View style={styles.confidenceBar}>
-          <View 
-            style={[
-              styles.confidenceFill, 
-              { 
-                width: `${analytics.confidenceScore * 100}%`,
-                backgroundColor: analytics.confidenceScore > 0.8 ? '#4CAF50' : 
-                                analytics.confidenceScore > 0.6 ? '#FF9800' : '#F44336'
-              }
-            ]} 
-          />
-        </View>
-      </View>
-
+    <ScrollView
+      style={[styles.container, isDark && styles.containerDark]}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Header Stats */}
-      <View style={styles.headerStats}>
-        <View style={styles.statCard}>
+      <View style={[styles.headerStats, isDark && styles.headerStatsDark]}>
+        <View
+          style={[
+            styles.statCard,
+            styles.statCardCredit,
+            isDark && styles.statCardDark,
+          ]}
+        >
           <Text style={styles.statValue}>
             ₹{analytics.totalCredit.toLocaleString("en-IN")}
           </Text>
-          <Text style={styles.statLabel}>Total Credit</Text>
+          <Text
+            style={[styles.statLabel, isDark && styles.statLabelDark]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            Credit
+          </Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: "#F44336" }]}>
+        <View
+          style={[
+            styles.statCard,
+            styles.statCardDebit,
+            isDark && styles.statCardDark,
+          ]}
+        >
+          <Text style={[styles.statValue, { color: "#000000" }]}>
             ₹{analytics.totalDebit.toLocaleString("en-IN")}
           </Text>
-          <Text style={styles.statLabel}>Total Debit</Text>
+          <Text
+            style={[styles.statLabel, isDark && styles.statLabelDark]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            Debit
+          </Text>
         </View>
       </View>
 
-      <View style={styles.headerStats}>
-        <View style={styles.statCard}>
+      <View
+        style={[
+          styles.headerStats,
+          styles.headerStatSec,
+          isDark && styles.headerStatsDarkSec,
+        ]}
+      >
+        {/* <View style={[styles.statCard, isDark && styles.statCardDark]}>
           <Text
             style={[
               styles.statValue,
@@ -352,19 +417,38 @@ const BankAnalytics = ({ transactions = [] }) => {
           >
             ₹{Math.abs(analytics.netBalance).toLocaleString("en-IN")}
           </Text>
-          <Text style={styles.statLabel}>
+          <Text style={[styles.statLabel, isDark && styles.statLabelDark]}>
             Net {analytics.netBalance >= 0 ? "Inflow" : "Outflow"}
           </Text>
-        </View>
-        <View style={styles.statCard}>
+        </View> */}
+        <View
+          style={[
+            styles.statCard,
+            styles.statCardTrans,
+            isDark && styles.statCardDark,
+
+            styles.statCardTransDark,
+          ]}
+        >
           <Text style={styles.statValue}>{analytics.transactionCount}</Text>
-          <Text style={styles.statLabel}>Transactions</Text>
+          <Text style={[styles.statLabel, isDark && styles.statLabelDark]}>
+            Transactions
+          </Text>
         </View>
       </View>
 
       {/* Pie Chart - Spending Categories */}
-      <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>Spending by Category</Text>
+      <View
+        style={[styles.chartContainer, isDark && styles.chartContainerDark]}
+      >
+        <Text
+          style={[
+            styles.chartTitle, // Only apply when loaded
+            isDark && styles.chartTitleDark,
+          ]}
+        >
+          Spending by Category
+        </Text>
         <PieChart
           data={pieChartData}
           width={CHART_WIDTH}
@@ -376,28 +460,40 @@ const BankAnalytics = ({ transactions = [] }) => {
           center={[0, 0]}
           absolute={false}
           hasLegend={true}
+          // Remove the 'color' style here, as it's not a valid ViewStyle property
+          // style={{ color: isDark ? "#fff" : "#000" }}
         />
       </View>
-
-      {/* Bar Chart - Monthly Comparison */}
-      <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>Monthly Credit vs Debit</Text>
-        <BarChart
+      <View
+        style={[styles.chartContainer, isDark && styles.chartContainerDark]}
+      >
+        <Text style={[styles.chartTitle, isDark && styles.chartTitleDark]}>
+          Monthly Credit vs Debit
+        </Text>
+        <LineChart
           data={barChartData}
           width={CHART_WIDTH}
-          height={220}
+          height={300}
           chartConfig={chartConfig}
-          verticalLabelRotation={0}
-          showValuesOnTopOfBars={true}
-          fromZero={true}
-          showBarTops={false}
+          bezier={true}
           style={styles.chart}
+          withDots={true}
+          withInnerLines={true}
+          withOuterLines={true}
+          withVerticalLines={true}
+          segments={6}
+          fromZero={false}
+          withHorizontalLines={true}
         />
       </View>
 
       {/* Line Chart - Weekly Trend */}
-      <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>Weekly Transaction Trend</Text>
+      <View
+        style={[styles.chartContainer, isDark && styles.chartContainerDark]}
+      >
+        <Text style={[styles.chartTitle, isDark && styles.chartTitleDark]}>
+          Weekly Transaction Trend
+        </Text>
         <LineChart
           data={lineChartData}
           width={CHART_WIDTH}
@@ -413,83 +509,238 @@ const BankAnalytics = ({ transactions = [] }) => {
         />
       </View>
 
-      {/* Category Breakdown */}
-      {analytics.categoryBreakdown.length > 0 && (
-        <View style={styles.categorySection}>
-          <Text style={styles.sectionTitle}>Category Breakdown</Text>
-          {analytics.categoryBreakdown.map((cat, index) => (
-            <View key={`${cat.category}-${index}`} style={styles.categoryCard}>
-              <View style={styles.categoryInfo}>
-                <Text style={styles.categoryName}>{cat.category}</Text>
-                <Text style={styles.categoryPercentage}>{cat.percentage}%</Text>
-              </View>
-              <View style={styles.categoryAmounts}>
-                {cat.debit > 0 && (
-                  <Text style={styles.categoryDebit}>
-                    Spent: ₹{cat.debit.toLocaleString("en-IN")}
-                  </Text>
-                )}
-                {cat.credit > 0 && (
-                  <Text style={styles.categoryCredit}>
-                    Received: ₹{cat.credit.toLocaleString("en-IN")}
-                  </Text>
-                )}
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* Quick Stats */}
-      <View style={styles.quickStats}>
-        <Text style={styles.sectionTitle}>Quick Insights</Text>
-
-        <View style={styles.insightCard}>
-          <Text style={styles.insightLabel}>Average Credit Amount</Text>
-          <Text style={styles.insightValue}>
-            ₹{analytics.averageCredit.toLocaleString("en-IN")}
-          </Text>
-        </View>
-
-        <View style={styles.insightCard}>
-          <Text style={styles.insightLabel}>Average Debit Amount</Text>
-          <Text style={styles.insightValue}>
-            ₹{analytics.averageDebit.toLocaleString("en-IN")}
-          </Text>
-        </View>
-
-        <View style={styles.insightCard}>
-          <Text style={styles.insightLabel}>Credit Transactions</Text>
-          <Text style={styles.insightValue}>{analytics.creditCount}</Text>
-        </View>
-
-        <View style={styles.insightCard}>
-          <Text style={styles.insightLabel}>Debit Transactions</Text>
-          <Text style={styles.insightValue}>{analytics.debitCount}</Text>
-        </View>
-      </View>
-
       {/* Top Merchants */}
       {analytics.topMerchants.length > 0 && (
-        <View style={styles.merchantsSection}>
-          <Text style={styles.sectionTitle}>Top Transaction Sources</Text>
+        <View
+          style={[
+            styles.merchantsSection,
+            isDark && styles.merchantsSectionDark,
+          ]}
+        >
+          <Text
+            style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}
+          >
+            Top Transaction Sources
+          </Text>
           {analytics.topMerchants.map(([merchant, data], index) => (
-            <View key={`${merchant}-${index}`} style={styles.merchantCard}>
+            <View
+              key={`${merchant}-${index}`}
+              style={[styles.merchantCard, isDark && styles.merchantCardDark]}
+            >
               <View style={styles.merchantInfo}>
-                <Text style={styles.merchantName} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.merchantName,
+                    isDark && styles.merchantNameDark,
+                  ]}
+                  numberOfLines={1}
+                >
                   {merchant}
                 </Text>
-                <Text style={styles.merchantCount}>
+                <Text
+                  style={[
+                    styles.merchantCount,
+                    isDark && styles.merchantCountDark,
+                  ]}
+                >
                   {data.count} transactions
                 </Text>
               </View>
-              <Text style={styles.merchantAmount}>
+              <Text
+                style={[
+                  styles.merchantAmount,
+                  isDark && styles.merchantAmountDark,
+                ]}
+              >
                 ₹{data.total.toLocaleString("en-IN")}
               </Text>
             </View>
           ))}
         </View>
       )}
+
+      {/* Recent Transactions Table */}
+      {analytics.recentTransactions.length > 0 && (
+        <View style={styles.transactionsSection}>
+          <Text
+            style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}
+          >
+            Recent Transactions
+          </Text>
+
+          {/* Table Header */}
+          <View style={[styles.tableHeader, isDark && styles.tableHeaderDark]}>
+            <Text
+              style={[
+                styles.tableHeaderText,
+                isDark && styles.tableHeaderTextDark,
+                styles.dateColumn,
+              ]}
+            >
+              Date
+            </Text>
+            <Text
+              style={[
+                styles.tableHeaderText,
+                isDark && styles.tableHeaderTextDark,
+                styles.typeColumn,
+              ]}
+            >
+              Type
+            </Text>
+            <Text
+              style={[
+                styles.tableHeaderText,
+                isDark && styles.tableHeaderTextDark,
+                styles.amountColumn,
+              ]}
+            >
+              ₹
+            </Text>
+            <Text
+              style={[
+                styles.tableHeaderText,
+                isDark && styles.tableHeaderTextDark,
+                styles.accountColumn,
+              ]}
+            >
+              cateogry
+            </Text>
+            <Text
+              style={[
+                styles.tableHeaderText,
+                isDark && styles.tableHeaderTextDark,
+                styles.confidenceColumn,
+              ]}
+            >
+              AI Score
+            </Text>
+          </View>
+
+          {/* Table Rows */}
+          {analytics.recentTransactions.map((transaction, index) => (
+            <View
+              key={`${transaction.id || index}`}
+              style={[styles.tableRow, isDark && styles.tableRowDark]}
+            >
+              <Text
+                style={[
+                  styles.tableCellText,
+                  isDark && styles.tableCellTextDark,
+                  styles.dateColumn,
+                ]}
+                numberOfLines={1}
+              >
+                {transaction.displayDate}
+              </Text>
+
+              <View style={[styles.typeColumn, styles.typeContainer]}>
+                <View
+                  style={[
+                    styles.typeBadge,
+                    {
+                      backgroundColor:
+                        transaction.type === "CREDIT"
+                          ? isDark
+                            ? "#1B5E20"
+                            : "#E8F5E8"
+                          : isDark
+                          ? "#B71C1C"
+                          : "#FFEBEE",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.typeBadgeText,
+                      {
+                        color:
+                          transaction.type === "CREDIT"
+                            ? isDark
+                              ? "#81C784"
+                              : "#2E7D32"
+                            : isDark
+                            ? "#EF5350"
+                            : "#C62828",
+                      },
+                    ]}
+                  >
+                    {transaction.type}
+                  </Text>
+                </View>
+              </View>
+
+              <Text
+                style={[
+                  styles.tableCellText,
+                  isDark && styles.tableCellTextDark,
+                  styles.amountColumn,
+                  {
+                    color:
+                      transaction.type === "CREDIT"
+                        ? isDark
+                          ? "#81C784"
+                          : "#2E7D32"
+                        : isDark
+                        ? "#EF5350"
+                        : "#C62828",
+                    fontWeight: "600",
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                ₹{transaction.displayAmount.toLocaleString("en-IN")}
+              </Text>
+
+              <Text
+                style={[
+                  styles.tableCellText,
+                  isDark && styles.tableCellTextDark,
+                  styles.accountColumn,
+                ]}
+                numberOfLines={1}
+              >
+                {transaction.category}
+              </Text>
+
+              <View
+                style={[styles.confidenceColumn, styles.confidenceContainer]}
+              >
+                <View
+                  style={[
+                    styles.confidenceBar,
+                    isDark && styles.confidenceBarSmallDark,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.confidenceBarFill,
+                      {
+                        width: `${transaction.confidencePercentage}%`,
+                        backgroundColor:
+                          parseFloat(transaction.confidencePercentage) > 80
+                            ? "#4CAF50"
+                            : parseFloat(transaction.confidencePercentage) > 60
+                            ? "#FF9800"
+                            : "#F44336",
+                      },
+                    ]}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.confidenceText,
+                    isDark && styles.confidenceTextDark,
+                  ]}
+                >
+                  {transaction.confidencePercentage}%
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+      {/* {console.log(transactions)} */}
     </ScrollView>
   );
 };
@@ -499,61 +750,167 @@ export default BankAnalytics;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
-    padding: CONTAINER_PADDING,
+    backgroundColor: "rgba(255, 255, 255, 0.84)",
+    // padding: CONTAINER_PADDING,
   },
-  headerStats: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  statCard: {
+  containerDark: { backgroundColor: "rgba(0, 0, 0, 0.84)" },
+
+  aiIndicator: {
     backgroundColor: "white",
     padding: 16,
     borderRadius: 12,
+    marginBottom: 16,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  aiIndicatorDark: {
+    backgroundColor: "#1e1e1e",
+    shadowColor: "#fff",
+    shadowOpacity: 0.05,
+  },
+
+  aiText: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+    color: "#333",
+  },
+  aiTextDark: {
+    color: "#fff",
+  },
+
+  confidenceBar: {
+    height: 8,
+    backgroundColor: "#E0E0E0",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  confidenceBarDark: {
+    backgroundColor: "#444",
+  },
+
+  confidenceFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+
+  headerStats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    // marginBottom: 8,
+  },
+
+  headerStatSec: {
+    borderBottomWidth: 0.8,
+    borderBottomColor: "#000000",
+  },
+  headerStatsDarkSec: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#ffffff",
+  },
+  statCard: {
+    // backgroundColor: "white",
+    padding: 12,
+    // borderRadius: 12,
     flex: 1,
-    marginHorizontal: 4,
+    // marginHorizontal: 4,
     alignItems: "center",
     elevation: 3,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    // borderBottomEndRadius: 1,
+  },
+
+  statCardCredit: {
+    backgroundColor: "#28AE4A",
+  },
+  statCardDebit: {
+    backgroundColor: "#C66161",
+  },
+  // statCardTrans: {
+  //   backgroundColor: "#181818",
+  // },
+  statCardTransDark: {
+    // backgroundColor: "#181818",
+    backgroundColor: "#D9D9D9",
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "bold",
-    color: "#4CAF50",
+    color: "#000000",
     marginBottom: 4,
+    fontFamily: Platform.select({
+      ios: "Lexend_400Regular",
+      android: "Lexend_400Regular",
+      default: "System", // fallback
+    }),
+    lineHeight: 20,
+    paddingRight: 12,
   },
+
   statLabel: {
-    fontSize: 13,
-    color: "#666",
+    fontSize: 12,
+    color: "#000000",
     textAlign: "center",
+    fontFamily: "Lexend_400Regular",
+    lineHeight: 20,
+    // paddingRight: 12,
     fontWeight: "500",
   },
+  statLabelDark: {
+    color: "#000000",
+    fontFamily: "Lexend_400Regular",
+  },
+
   chartContainer: {
+    marginTop: 20,
+    // marginHorizontal: 4,/
     backgroundColor: "white",
-    borderRadius: 12,
-    padding: CHART_CONTAINER_PADDING,
+    // borderRadius: 12,
+    padding: 12,
     marginBottom: 16,
     elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    // shadowColor: "#000",
+    // shadowOffset: { width: 0, height: 2 },
+    // shadowOpacity: 0.1,
+    // shadowRadius: 2,
+    fontFamily: "Lexend_400Regular",
+    lineHeight: 20,
+    borderTopWidth: 0.8,
+    borderBottomWidth: 0.8,
+    borderColor: "#000000",
   },
+  chartContainerDark: {
+    borderColor: "#ffffff",
+    // backgroundColor: "#1e1e1e",
+    // shadowColor: "#fff",
+    // shadowOpacity: 0.5,
+    // fontFamily: fontsLoaded ? "Lexend_400Regular" : "System", // Add fallback
+    // lineHeight: 20,/
+  },
+
   chartTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "bold",
+    letterSpacing: 0.5,
     marginBottom: 16,
-    color: "#333",
+    color: "#000000",
     textAlign: "center",
+    fontFamily: "Lexend_400Regular", // Add this line
+    lineHeight: 20, // Optional: add consistent line height
   },
+
   chart: {
+    color: "#000000",
     marginVertical: 8,
     borderRadius: 16,
   },
+
   quickStats: {
     backgroundColor: "white",
     borderRadius: 12,
@@ -565,30 +922,43 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
+
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "bold",
-    marginBottom: 16,
-    color: "#333",
+    marginBottom: 8,
+    color: "#000000",
+    flex: 1,
+    width: "100%",
+    textAlign: "center",
+    fontFamily: "Lexend_400Regular",
+    lineHeight: 24,
   },
+  sectionTitleDark: {
+    color: "#CDCDCD",
+  },
+
   insightCard: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
+    // paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
   },
+
   insightLabel: {
     fontSize: 14,
     color: "#666",
     flex: 1,
   },
+
   insightValue: {
     fontSize: 14,
     fontWeight: "bold",
     color: "#333",
   },
+
   merchantsSection: {
     backgroundColor: "white",
     borderRadius: 12,
@@ -600,6 +970,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
+  merchantsSectionDark: {
+    backgroundColor: "#1e1e1e",
+    shadowColor: "#fff",
+    shadowOpacity: 0.05,
+  },
+
   merchantCard: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -608,23 +984,170 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
   },
+  merchantCardDark: {
+    borderBottomColor: "#444",
+  },
+
   merchantInfo: {
     flex: 1,
     marginRight: 8,
   },
+
   merchantName: {
     fontSize: 14,
     fontWeight: "bold",
     color: "#333",
     marginBottom: 4,
   },
+  merchantNameDark: {
+    color: "#fff",
+  },
+
   merchantCount: {
     fontSize: 12,
     color: "#666",
   },
+  merchantCountDark: {
+    color: "#ccc",
+  },
+
   merchantAmount: {
     fontSize: 14,
     fontWeight: "bold",
     color: "#2196F3",
+  },
+  merchantAmountDark: {
+    color: "#64B5F6",
+  },
+
+  transactionsSection: {
+    marginTop: 16,
+    paddingHorizontal: 0,
+    paddingBottom: 88,
+  },
+
+  tableHeader: {
+    flexDirection: "row",
+    backgroundColor: "#CDCDCD",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    // borderRadius: 8,
+    marginBottom: 4,
+    borderBottomWidth: 0.8,
+    borderTopWidth: 0.8,
+    borderBottomColor: "#000000",
+    borderTopColor: "#000000",
+  },
+  tableHeaderDark: {
+    backgroundColor: "#1e1e1e",
+    borderBottomColor: "#555",
+    borderTopColor: "#555",
+  },
+
+  tableHeaderText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#000000",
+    textAlign: "center",
+    fontFamily: "Lexend_400Regular",
+    lineHeight: 20,
+  },
+  tableHeaderTextDark: {
+    color: "#CDCDCD",
+  },
+
+  tableRow: {
+    flexDirection: "row",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 0.8,
+    overflow: "hidden",
+    borderBottomColor: "#000000",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+  },
+  tableRowDark: {
+    backgroundColor: "transparent",
+    borderBottomColor: "#ffffff",
+  },
+
+  tableCellText: {
+    fontSize: 12,
+    color: "#666666",
+    textAlign: "center",
+    fontFamily: "Lexend_400Regular",
+    lineHeight: 20,
+  },
+  tableCellTextDark: {
+    color: "#ccc",
+  },
+
+  // Column widths (adjust percentages as needed)
+  dateColumn: {
+    flex: 2,
+  },
+
+  typeColumn: {
+    flex: 1.5,
+    alignItems: "center",
+  },
+
+  amountColumn: {
+    flex: 1.5,
+    textAlign: "center",
+  },
+
+  accountColumn: {
+    flex: 1.5,
+  },
+
+  // Not having the dark styles
+
+  confidenceColumn: {
+    flex: 2,
+    alignItems: "center",
+  },
+
+  // Type badge styles
+  typeContainer: {
+    alignItems: "center",
+  },
+
+  typeBadge: {
+    paddingHorizontal: 2,
+    paddingVertical: 2,
+    borderRadius: 12,
+    minWidth: 50,
+    alignItems: "center",
+  },
+
+  typeBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    fontFamily: "Lexend_400Regular",
+    lineHeight: 16,
+  },
+
+  // Confidence bar styles
+  confidenceContainer: {
+    alignItems: "center",
+  },
+
+  confidenceBar: {
+    width: 30,
+    height: 4,
+    backgroundColor: "#E0E0E0",
+    borderRadius: 2,
+    marginBottom: 2,
+  },
+
+  confidenceBarFill: {
+    height: "100%",
+    borderRadius: 2,
+  },
+
+  confidenceText: {
+    fontSize: 9,
+    color: "#666666",
   },
 });

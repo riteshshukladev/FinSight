@@ -151,7 +151,8 @@ export const useEnhancedSMSData = () => {
     }
   };
 
-  // Enhanced AI service call with better error handling and retry logic
+
+// Enhanced AI service call with better error handling and retry logic
 const callAIService = async (prompt, retryCount = 0) => {
   const maxRetries = 2;
   
@@ -166,8 +167,8 @@ const callAIService = async (prompt, retryCount = 0) => {
         parts: [{ text: prompt }]
       }],
       generationConfig: {
-        temperature: 0.05,
-        maxOutputTokens: 2048,
+        temperature: 1,
+        maxOutputTokens: 4096, // Increased token limit
         topP: 0.8,
         topK: 40,
         // Add response format instruction
@@ -218,8 +219,28 @@ const callAIService = async (prompt, retryCount = 0) => {
     }
 
     const candidate = data.candidates[0];
+    
+    // Check for finish reason issues
+    if (candidate.finishReason === 'MAX_TOKENS') {
+      console.warn('Response truncated due to token limit');
+      // Don't throw error, try to parse what we have
+    } else if (candidate.finishReason === 'SAFETY') {
+      console.warn('Response blocked by safety filters');
+      return [];
+    } else if (candidate.finishReason && candidate.finishReason !== 'STOP') {
+      console.warn('Unexpected finish reason:', candidate.finishReason);
+    }
+    
     if (!candidate.content || !candidate.content.parts || !Array.isArray(candidate.content.parts) || candidate.content.parts.length === 0) {
       console.error('Invalid candidate structure:', candidate);
+      
+      // If it's a MAX_TOKENS issue, try with smaller batch
+      if (candidate.finishReason === 'MAX_TOKENS' && retryCount < maxRetries) {
+        console.log('Retrying with token limit issue...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return callAIService(prompt, retryCount + 1);
+      }
+      
       throw new Error('No content in candidate');
     }
 
@@ -245,6 +266,31 @@ const callAIService = async (prompt, retryCount = 0) => {
       
       let parsed;
       
+      // Handle truncated JSON - try to fix common issues
+      if (!cleaned.endsWith(']') && !cleaned.endsWith('}')) {
+        console.warn('Response appears truncated, attempting to fix...');
+        
+        // Try to close incomplete JSON structures
+        if (cleaned.includes('[') && !cleaned.endsWith(']')) {
+          // Find the last complete object
+          const lastCompleteObject = cleaned.lastIndexOf('}');
+          if (lastCompleteObject !== -1) {
+            cleaned = cleaned.substring(0, lastCompleteObject + 1) + ']';
+            console.log('Fixed truncated array');
+          }
+        } else if (cleaned.includes('{') && !cleaned.endsWith('}')) {
+          // Try to close incomplete object
+          const openBraces = (cleaned.match(/\{/g) || []).length;
+          const closeBraces = (cleaned.match(/\}/g) || []).length;
+          const missingBraces = openBraces - closeBraces;
+          
+          if (missingBraces > 0) {
+            cleaned += '}'.repeat(missingBraces);
+            console.log(`Added ${missingBraces} closing braces`);
+          }
+        }
+      }
+      
       // Try direct parsing first
       if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
         parsed = JSON.parse(cleaned);
@@ -256,7 +302,22 @@ const callAIService = async (prompt, retryCount = 0) => {
         const jsonObjectMatch = cleaned.match(/\{[\s\S]*\}/);
         
         if (jsonArrayMatch) {
-          parsed = JSON.parse(jsonArrayMatch[0]);
+          try {
+            parsed = JSON.parse(jsonArrayMatch[0]);
+          } catch (e) {
+            // Try to fix the matched JSON
+            let fixedJson = jsonArrayMatch[0];
+            
+            // Fix common issues with truncated JSON
+            if (!fixedJson.endsWith(']')) {
+              const lastCompleteObject = fixedJson.lastIndexOf('}');
+              if (lastCompleteObject !== -1) {
+                fixedJson = fixedJson.substring(0, lastCompleteObject + 1) + ']';
+              }
+            }
+            
+            parsed = JSON.parse(fixedJson);
+          }
         } else if (jsonObjectMatch) {
           parsed = [JSON.parse(jsonObjectMatch[0])];
         } else {
@@ -338,8 +399,8 @@ const classifyBankAndUPITransactions = async (rawMessages) => {
 
     console.log(`Processing ${newMessages.length} new messages for Bank/UPI transactions`);
 
-    // Smaller batch size for better reliability
-    const batchSize = 5; // Reduced from 8
+    // Even smaller batch size for better reliability
+    const batchSize = 3; // Reduced from 5
     const allClassifiedMessages = [];
     let successfulBatches = 0;
     let failedBatches = 0;
@@ -356,14 +417,23 @@ const classifyBankAndUPITransactions = async (rawMessages) => {
         `MESSAGE ${index + 1}:\nSender: ${msg.address}\nContent: ${msg.body}\nDate: ${new Date(parseInt(msg.date)).toISOString()}\n---\n`
       ).join('');
 
-      // Enhanced prompt with stricter instructions
-      const enhancedPrompt = `${AI_CLASSIFICATION_PROMPT}
+      // Enhanced prompt with stricter instructions and shorter format
+      const enhancedPrompt = `You are a specialized SMS classifier for BANK and UPI transactions ONLY.
 
-IMPORTANT: Return ONLY valid JSON array format. No explanations, no markdown, just JSON.
+STRICT REQUIREMENTS - Return ONLY these two types:
 
+1. BANK TRANSACTIONS: Must contain ("A/c" OR "Account") + ("debited" OR "credited") + "Rs." + Bank signature (-SBI, -HDFC, etc.)
+2. UPI TRANSACTIONS: Must be from UPI apps (GPay, PhonePe, Paytm, BHIM, etc.) + ("paid" OR "received") + amount + "UPI"
+
+REJECT EVERYTHING ELSE. Return [] if no BANK or UPI transactions found.
+
+RESPONSE FORMAT (JSON ONLY):
+[{"category":"BANK"|"UPI","type":"DEBIT"|"CREDIT","amount":"500.00","description":"brief desc","originalMessage":"exact SMS text","confidence":0.9,"isFinancial":true}]
+
+MESSAGES:
 ${messagesToAnalyze}
 
-Remember: Return [] if no BANK or UPI transactions found in these messages.`;
+Return only valid JSON array:`;
 
       try {
         const response = await callAIService(enhancedPrompt);

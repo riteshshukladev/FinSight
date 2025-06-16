@@ -4,94 +4,117 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useColorScheme,
 } from "react-native";
+import LoadingOverlay from "@/components/LoadingOverlay";
+// Fix the import name to match your actual component name
+import EmptyMessagesList from "@/components/EmptyMessagesList"; // Make sure this matches your file name
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSMSDataContext } from "../../hooks/SMSDataContext";
+import { MaterialIcons } from "@expo/vector-icons";
+import React, { useState } from "react";
+import { useFonts, Lexend_400Regular } from "@expo-google-fonts/lexend";
 
 export default function MessagesTab() {
+  let [fontsLoaded] = useFonts({
+    Lexend_400Regular,
+  });
+
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
   const { messages, loading, loadBankMessages, forceRefresh, processing } =
     useSMSDataContext();
 
   const renderTransactionItem = ({ item }) => (
-    <View style={styles.item}>
-      <View style={styles.itemHeader}>
-        <Text style={styles.sender}>{item.address}</Text>
-        {item.type && (
-          <View
-            style={[
-              styles.typeBadge,
-              {
-                backgroundColor: item.type === "CREDIT" ? "#4CAF50" : "#F44336",
-              },
-            ]}
-          >
-            <Text style={styles.typeText}>{item.type}</Text>
-          </View>
+    <View
+      style={[
+        styles.item,
+        isDark && styles.itemDark,
+        {
+          borderRightColor: item.type === "CREDIT" ? "#28AE4A" : "#C66161",
+          borderLeftColor: item.type === "CREDIT" ? "#28AE4A" : "#C66161",
+          borderBottomColor: isDark ? "#ddd" : "#000000",
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.itemHeader,
+          {
+            borderTopColor: item.type === "CREDIT" ? "#28AE4A" : "#C66161",
+            borderBottomColor: item.type === "CREDIT" ? "#28AE4A" : "#C66161",
+          },
+        ]}
+      >
+        {item.amount && (
+          <Text style={[styles.amount, isDark && styles.amountDark]}>
+            ₹{item.amount}
+          </Text>
         )}
+
+        <Text style={[styles.sender, isDark && styles.senderDark]}>
+          {item.address}
+        </Text>
       </View>
 
-      {item.amount && <Text style={styles.amount}>₹{item.amount}</Text>}
-
-      {item.merchant && (
-        <Text style={styles.merchant}>At: {item.merchant}</Text>
-      )}
-
-      {item.balance && (
-        <Text style={styles.balance}>Balance: ₹{item.balance}</Text>
-      )}
-
-      {item.card && <Text style={styles.card}>Card: {item.card}</Text>}
-
-      <Text style={styles.body} numberOfLines={3}>
+      <Text style={[styles.body, isDark && styles.bodyDark]} numberOfLines={3}>
         {item.body}
       </Text>
 
-      <Text style={styles.date}>{item.date.toLocaleString()}</Text>
+      <Text style={[styles.date, isDark && styles.dateDark]}>
+        {new Date(item.date).toLocaleDateString("en-IN")} |{" "}
+        {new Date(item.date).toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        })}
+      </Text>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Bank Transaction Messages</Text>
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={loadBankMessages}
-          disabled={loading}
-        >
-          <Text style={styles.refreshButtonText}>
-            {loading ? "Loading..." : "Refresh"}
-          </Text>
-        </TouchableOpacity>
+    <SafeAreaView
+      style={[styles.container, isDark && styles.containerDark]}
+      edges={["top"]}
+    >
+      <View style={[styles.header, isDark && styles.headerDark]}>
+        <View style={styles.subheader}>
+          <TouchableOpacity onPress={loadBankMessages} disabled={loading}>
+            <Text
+              style={[
+                styles.refreshButtonText,
+                isDark && styles.refreshButtonTextDark,
+              ]}
+            >
+              {loading ? "Loading..." : "refresh"}
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={forceRefresh}
-          disabled={loading}
-        >
-          <Text style={styles.refreshButtonText}>
-            {loading ? "Loading..." : "clear cache"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.subtitle}>
-        Found {messages.length} bank transaction messages
-      </Text>
-      {(loading || processing) && (
-        <View
-          style={{
-            ...StyleSheet.absoluteFillObject,
-            backgroundColor: "rgba(255,255,255,0.7)",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 10,
-          }}
-        >
-          <Text style={{ fontSize: 18, fontWeight: "bold" }}>
-            Processing...
-          </Text>
+          <TouchableOpacity onPress={forceRefresh} disabled={loading}>
+            <Text
+              style={[
+                styles.refreshButtonText,
+                isDark && styles.refreshButtonTextDark,
+              ]}
+            >
+              {loading ? "Loading..." : "clear cache"}
+            </Text>
+          </TouchableOpacity>
         </View>
-      )}
+
+        <Text style={[styles.subtitle, isDark && styles.subtitleDark]}>
+          Total Messages: {messages.length}
+        </Text>
+      </View>
+
+      <LoadingOverlay
+        visible={loading || processing}
+        isDark={isDark}
+        fontsLoaded={fontsLoaded}
+        loadingText={processing ? "Processing Messages..." : "Loading..."}
+        subText={processing ? "Analyzing bank transactions" : "Please wait"}
+      />
+
       <FlatList
         data={messages}
         keyExtractor={(item) =>
@@ -100,158 +123,178 @@ export default function MessagesTab() {
         renderItem={renderTransactionItem}
         refreshing={loading}
         onRefresh={loadBankMessages}
+        // Add some padding to prevent items from touching screen edges
+        contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {loading
-                ? "Loading bank messages..."
-                : "No bank transaction messages found"}
-            </Text>
-          </View>
+          <EmptyMessagesList
+            loading={loading}
+            isDark={isDark}
+            onRefresh={loadBankMessages}
+            fontsLoaded={fontsLoaded}
+          />
         }
       />
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "rgba(255, 255, 255, 0.84)",
   },
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "white",
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+  containerDark: {
+    backgroundColor: "rgba(0, 0, 0, 0.84)",
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
-  activeTab: {
-    borderBottomColor: "#2196F3",
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#666",
-  },
-  activeTabText: {
-    color: "#2196F3",
-    fontWeight: "bold",
-  },
-  messagesContainer: {
-    flex: 1,
-    padding: 16,
-  },
+
   header: {
-    flexDirection: "row",
+    flexDirection: "column",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 20,
+    gap: 8,
+    backgroundColor: "rgba(241, 241, 241, 0.7)",
+    borderBottomWidth: 1,
+    borderBottomColor: "#9c9c9c",
     marginBottom: 8,
+    fontFamily: "Lexend_400Regular",
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    flex: 1,
+  headerDark: {
+    backgroundColor: "rgba(24, 24, 24, 1)",
+    borderBottomColor: "#ddd",
   },
+
+  subheader: {
+    flexDirection: "row",
+    width: "100%",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
   subtitle: {
     fontSize: 14,
-    color: "#666",
-    marginBottom: 12,
+    fontWeight: "semibold",
+    color: "#000000",
+    fontFamily: "Lexend_400Regular",
+    lineHeight: 20,
   },
-  refreshButton: {
-    backgroundColor: "#2196F3",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
+  subtitleDark: {
+    color: "#CDCDCD",
+    lineHeight: 20,
   },
+
   refreshButtonText: {
-    color: "white",
-    fontWeight: "bold",
+    color: "black",
+    fontSize: 14,
+    fontWeight: "normal",
+    paddingBottom: 0.5,
+    borderBottomColor: "black",
+    borderBottomWidth: 1,
+    fontFamily: "Lexend_400Regular",
+    lineHeight: 20,
   },
+  refreshButtonTextDark: {
+    fontSize: 14,
+    color: "#fff",
+    borderBottomColor: "white",
+    borderBottomWidth: 1,
+  },
+
+  // Add padding for list items
+  listContainer: {
+    paddingHorizontal: 12,
+    flexGrow: 1,
+  },
+
   item: {
     backgroundColor: "white",
-    padding: 12,
-    marginBottom: 8,
-    borderRadius: 8,
-    elevation: 2,
+    marginBottom: 12,
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+    width: "100%",
+    alignSelf: "stretch",
+    borderBottomWidth: 0.5,
+    borderRightWidth: 4,
+    borderLeftWidth: 4,
+    overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
   },
+  itemDark: {
+    backgroundColor: "#1e1e1e",
+    shadowColor: "#fff",
+    shadowOpacity: 0.1,
+  },
+
   itemHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 6,
+    width: "100%",
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
+    paddingHorizontal: 12,
+    flex: 1,
   },
+
   sender: {
     fontWeight: "bold",
     fontSize: 14,
-    color: "#333",
-    flex: 1,
+    color: "#000000",
+    lineHeight: 18,
+    fontFamily: "Lexend_400Regular",
   },
-  typeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+  senderDark: {
+    color: "#CDCDCD",
+    fontFamily: "Lexend_400Regular",
   },
-  typeText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
+
   amount: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
-    color: "#333",
-    marginBottom: 4,
+    color: "#000000",
+    lineHeight: 18,
+    fontFamily: "Lexend_400Regular",
   },
-  merchant: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 2,
+  amountDark: {
+    color: "#CDCDCD",
+    fontFamily: "Lexend_400Regular",
   },
-  balance: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 2,
-  },
-  card: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 4,
-  },
+
   body: {
     fontSize: 14,
-    color: "#555",
+    color: "#000000",
     marginBottom: 6,
     lineHeight: 18,
+    fontFamily: "Lexend_400Regular",
+    letterSpacing: 0.2,
+    paddingHorizontal: 12,
   },
+  bodyDark: {
+    color: "#CDCDCD",
+  },
+
   date: {
     fontSize: 12,
+    paddingHorizontal: 12,
+    paddingBottom: 6,
     color: "#888",
     fontStyle: "italic",
+    lineHeight: 18,
+    fontFamily: "Lexend_400Regular",
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 40,
+  dateDark: {
+    color: "#aaa",
   },
-  emptyText: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-  },
+
+  // Removed unused styles:
+  // - refreshButton, refreshButtonDark (not being used)
+  // - typeBadge, typeText (not being used)
+  // - merchant, merchantDark, balance, balanceDark, card, cardDark (not being used)
+  // - emptyContainer, emptyText, emptyTextDark (replaced by EmptyMessagesList component)
 });
