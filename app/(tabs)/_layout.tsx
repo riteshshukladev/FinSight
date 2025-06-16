@@ -35,13 +35,14 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Analytics",
+          title: "Stats",
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="analytics" size={24} color={color} />
           ),
           tabBarLabelStyle: {
             fontFamily: "Lexend_400Regular",
             fontSize: 10,
+            lineHeight: 12,
             fontWeight: "500",
           },
         }}
@@ -56,6 +57,7 @@ export default function TabLayout() {
           tabBarLabelStyle: {
             fontFamily: "Lexend_400Regular",
             fontSize: 10,
+            lineHeight: 16,
             fontWeight: "500",
           },
         }}
