@@ -1,9 +1,18 @@
 import { useMemo } from 'react';
 import { useColorScheme } from 'react-native';
 
+interface Transaction {
+  amount: string | number;
+  date?: string;
+  type?: string;
+  category?: string;
+  merchant?: string;
+  confidence?: number;
+  account?: string;
+}
+
 // Predefined colors for consistency
 const CHART_COLORS = [
-  "#FF6384",
   "#36A2EB", 
   "#FFCE56",
   "#4BC0C0",
@@ -13,7 +22,7 @@ const CHART_COLORS = [
   "#4ECDC4",
 ];
 
-export const useBankAnalytics = (transactions = []) => {
+export const useBankAnalytics = (transactions: Transaction[] = []) => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -44,17 +53,17 @@ export const useBankAnalytics = (transactions = []) => {
     let creditCount = 0;
     let debitCount = 0;
     let totalConfidence = 0;
-    const monthlyStats = {};
-    const categoryStats = {};
-    const dailyStats = {};
-    const merchantStats = {};
+    const monthlyStats: { [key: string]: { credit: number; debit: number; count: number; net: number } } = {};
+    const categoryStats: { [key: string]: { credit: number; debit: number; count: number; total: number } } = {};
+    const dailyStats: { [key: string]: { credit: number; debit: number; net: number } } = {};
+    const merchantStats: { [key: string]: { credit: number; debit: number; count: number; total: number } } = {};
 
     // Process AI-classified transactions
     transactions.forEach((transaction) => {
       try {
         if (!transaction || typeof transaction !== "object") return;
 
-        const amount = Math.abs(parseFloat(transaction.amount) || 0);
+        const amount = Math.abs(parseFloat(String(transaction.amount)) || 0);
         if (amount === 0) return;
 
         const date = transaction.date ? new Date(transaction.date) : new Date();
@@ -204,16 +213,16 @@ export const useBankAnalytics = (transactions = []) => {
 
     const recentTransactions = transactions
       .slice() // Create copy to avoid mutating original
-      .sort((a, b) => new Date(b.date) - new Date(a.date)) // Sort by date desc
+      .sort((a, b) => (new Date(b.date || '')).getTime() - (new Date(a.date || '')).getTime()) // Sort by date desc
       .slice(0, 8) // Get last 8 transactions
       .map((transaction, index) => ({
         ...transaction,
-        displayDate: new Date(transaction.date).toLocaleDateString("en-IN", {
+        displayDate: new Date(transaction.date || new Date()).toLocaleDateString("en-IN", {
           day: "2-digit",
           month: "short",
           year: "numeric",
         }),
-        displayAmount: Math.abs(parseFloat(transaction.amount) || 0),
+        displayAmount: Math.abs(parseFloat(String(transaction.amount)) || 0),
         displayAccount: `****${transaction.account?.slice(-4) || "0000"}`,
         confidencePercentage: ((transaction.confidence || 0.5) * 100).toFixed(
           1

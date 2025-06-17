@@ -2,13 +2,21 @@ import React, { useEffect, useRef } from "react";
 import { View, Text, StyleSheet, Animated, Easing } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
+type LoadingOverlayProps = {
+  visible: boolean;
+  isDark: boolean;
+  fontsLoaded: boolean;
+  loadingText?: string;
+  subText?: string | null;
+};
+
 const LoadingOverlay = ({
   visible,
   isDark,
   fontsLoaded,
   loadingText = "Processing...",
   subText = null,
-}) => {
+}: LoadingOverlayProps) => {
   const spinValue = useRef(new Animated.Value(0)).current;
   const fadeValue = useRef(new Animated.Value(0)).current;
   const scaleValue = useRef(new Animated.Value(0.8)).current;

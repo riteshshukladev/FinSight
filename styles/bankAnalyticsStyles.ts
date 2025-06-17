@@ -107,6 +107,7 @@ export const styles = StyleSheet.create({
     fontFamily: "Lexend_400Regular",
     lineHeight: 20,
     fontWeight: "500",
+    paddingRight:4,
   },
   statLabelDark: {
     color: "#000000",

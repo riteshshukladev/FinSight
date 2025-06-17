@@ -7,14 +7,13 @@ import {
   useColorScheme,
 } from "react-native";
 import LoadingOverlay from "@/components/LoadingOverlay";
-// Fix the import name to match your actual component name
-import EmptyMessagesList from "@/components/EmptyMessageList"; // Make sure this matches your file name
+import EmptyMessagesList from "@/components/EmptyMessageList";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSMSDataContext } from "../../hooks/SMSDataContext";
 import { MaterialIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { useFonts, Lexend_400Regular } from "@expo-google-fonts/lexend";
-import { styles } from "@/styles/messagesStyles"; // Adjust the import path as needed
+import { styles } from "@/styles/messagesStyles";
 
 export default function MessagesTab() {
   let [fontsLoaded] = useFonts({
@@ -23,10 +22,32 @@ export default function MessagesTab() {
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const { messages, loading, loadBankMessages, forceRefresh, processing } =
-    useSMSDataContext();
 
-  const renderTransactionItem = ({ item }) => (
+  // Get the context data - it might be null
+  const smsData = useSMSDataContext();
+
+  // Handle null context case
+  if (!smsData) {
+    return (
+      <SafeAreaView
+        style={[styles.container, isDark && styles.containerDark]}
+        edges={["top"]}
+      >
+        <LoadingOverlay
+          visible={true}
+          isDark={isDark}
+          fontsLoaded={fontsLoaded}
+          loadingText="Initializing..."
+          // subText="Please wait"
+        />
+      </SafeAreaView>
+    );
+  }
+
+  const { messages, loading, loadBankMessages, forceRefresh, processing } =
+    smsData;
+
+  const renderTransactionItem = ({ item }: any) => (
     <View
       style={[
         styles.item,
@@ -104,7 +125,7 @@ export default function MessagesTab() {
         </View>
 
         <Text style={[styles.subtitle, isDark && styles.subtitleDark]}>
-          Total Messages: {messages.length}
+          Total Messages: {messages?.length || 0}
         </Text>
       </View>
 
@@ -113,18 +134,17 @@ export default function MessagesTab() {
         isDark={isDark}
         fontsLoaded={fontsLoaded}
         loadingText={processing ? "Processing Messages..." : "Loading..."}
-        subText={processing ? "Analyzing bank transactions" : "Please wait"}
+        subText={processing ? null : undefined}
       />
 
       <FlatList
-        data={messages}
+        data={messages || []}
         keyExtractor={(item) =>
           item._id?.toString() || Math.random().toString()
         }
         renderItem={renderTransactionItem}
         refreshing={loading}
         onRefresh={loadBankMessages}
-        // Add some padding to prevent items from touching screen edges
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
           <EmptyMessagesList

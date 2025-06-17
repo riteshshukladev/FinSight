@@ -42,8 +42,10 @@ export default function TabLayout() {
           tabBarLabelStyle: {
             fontFamily: "Lexend_400Regular",
             fontSize: 10,
-            lineHeight: 12,
+            // lineHeight: 12,
+            paddingBottom: 12,
             fontWeight: "500",
+            // flex: 1,
           },
         }}
       />
@@ -58,6 +60,7 @@ export default function TabLayout() {
             fontFamily: "Lexend_400Regular",
             fontSize: 10,
             lineHeight: 16,
+            paddingBottom: 12,
             fontWeight: "500",
           },
         }}

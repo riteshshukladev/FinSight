@@ -1,11 +1,13 @@
 import { StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import  BankAnalytics from "../../components/BankAnalytics";
+import BankAnalytics from "../../components/BankAnalytics";
 // import { useSMSData } from "../../hooks/useSMSData";
 import { useSMSDataContext } from "../../hooks/SMSDataContext";
+import { SMSMessage } from "@/types/type";
 
 export default function AnalyticsTab() {
-  const { messages } = useSMSDataContext();
+  const context = useSMSDataContext();
+  const messages: SMSMessage[] = context?.messages ?? [];
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>

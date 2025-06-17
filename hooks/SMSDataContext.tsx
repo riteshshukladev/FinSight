@@ -1,7 +1,7 @@
-import React, { createContext, useContext,useEffect } from "react";
+import React, { createContext, useContext, useEffect } from "react";
 import { useEnhancedSMSData } from "./useSMSData"; // <-- use the correct hook
-
-const SMSDataContext = createContext(null);
+import type { UseEnhancedSMSDataReturn } from "@/types/type";
+const SMSDataContext = createContext<UseEnhancedSMSDataReturn | null>(null);
 
 export const SMSDataProvider: React.FC<React.PropsWithChildren<{}>> = ({
   children,

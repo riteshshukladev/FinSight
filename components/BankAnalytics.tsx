@@ -5,6 +5,7 @@ import { useBankAnalytics } from "../hooks/useBankAnalytics";
 import { styles } from "../styles/bankAnalyticsStyles";
 
 const { width: screenWidth } = Dimensions.get("window");
+import { SMSMessage } from "@/types/type";
 
 // Calculate chart width accounting for all padding and margins
 const CONTAINER_PADDING = 4;
@@ -13,7 +14,20 @@ const CHART_WIDTH =
   screenWidth - CONTAINER_PADDING * 2 - CHART_CONTAINER_PADDING * 2;
 
 // Header Stats Component
-export const HeaderStats = ({ analytics, isDark }) => (
+type Props = {
+  transactions: SMSMessage[];
+};
+
+interface HeaderStatsProps {
+  analytics: {
+    totalCredit: number;
+    totalDebit: number;
+    transactionCount: number;
+  };
+  isDark: boolean;
+}
+
+export const HeaderStats = ({ analytics, isDark }: HeaderStatsProps) => (
   <>
     <View style={[styles.headerStats, isDark && styles.headerStatsDark]}>
       <View
@@ -79,7 +93,23 @@ export const HeaderStats = ({ analytics, isDark }) => (
 );
 
 // Chart Components
-export const SpendingPieChart = ({ pieChartData, chartConfig, isDark }) => (
+interface SpendingChartProps {
+  pieChartData: {
+    name: string;
+    population: number;
+    color: string;
+    legendFontColor: string;
+    legendFontSize: number;
+  }[];
+  chartConfig: any;
+  isDark: boolean;
+}
+
+export const SpendingPieChart = ({
+  pieChartData,
+  chartConfig,
+  isDark,
+}: SpendingChartProps) => (
   <View style={[styles.chartContainer, isDark && styles.chartContainerDark]}>
     <Text style={[styles.chartTitle, isDark && styles.chartTitleDark]}>
       Spending by Category
@@ -99,7 +129,25 @@ export const SpendingPieChart = ({ pieChartData, chartConfig, isDark }) => (
   </View>
 );
 
-export const MonthlyLineChart = ({ barChartData, chartConfig, isDark }) => (
+interface MonthlyLineChartProps {
+  barChartData: {
+    labels: string[];
+    datasets: {
+      data: number[];
+      color?: (opacity: number) => string;
+      strokeWidth?: number;
+    }[];
+    legend?: string[];
+  };
+  chartConfig: any;
+  isDark: boolean;
+}
+
+export const MonthlyLineChart = ({
+  barChartData,
+  chartConfig,
+  isDark,
+}: MonthlyLineChartProps) => (
   <View style={[styles.chartContainer, isDark && styles.chartContainerDark]}>
     <Text style={[styles.chartTitle, isDark && styles.chartTitleDark]}>
       Monthly Credit vs Debit
@@ -122,7 +170,24 @@ export const MonthlyLineChart = ({ barChartData, chartConfig, isDark }) => (
   </View>
 );
 
-export const WeeklyTrendChart = ({ lineChartData, chartConfig, isDark }) => (
+interface WeeklyTrendChartProps {
+  lineChartData: {
+    labels: string[];
+    datasets: {
+      data: number[];
+      color?: (opacity: number) => string;
+      strokeWidth?: number;
+    }[];
+  };
+  chartConfig: any;
+  isDark: boolean;
+}
+
+export const WeeklyTrendChart = ({
+  lineChartData,
+  chartConfig,
+  isDark,
+}: WeeklyTrendChartProps) => (
   <View style={[styles.chartContainer, isDark && styles.chartContainerDark]}>
     <Text style={[styles.chartTitle, isDark && styles.chartTitleDark]}>
       Weekly Transaction Trend
@@ -144,7 +209,23 @@ export const WeeklyTrendChart = ({ lineChartData, chartConfig, isDark }) => (
 );
 
 // Top Merchants Component
-export const TopMerchants = ({ analytics, isDark }) => {
+interface TopMerchantsProps {
+  analytics: {
+    topMerchants: Array<[string, { count: number; total: number }]>;
+    totalCredit: number;
+    totalDebit: number;
+    netBalance: number;
+    transactionCount: number;
+    creditCount: number;
+    debitCount: number;
+    averageCredit: number;
+    averageDebit: number;
+    confidenceScore: number;
+  };
+  isDark: boolean;
+}
+
+export const TopMerchants = ({ analytics, isDark }: TopMerchantsProps) => {
   if (analytics.topMerchants.length === 0) return null;
 
   return (
@@ -184,7 +265,29 @@ export const TopMerchants = ({ analytics, isDark }) => {
 };
 
 // Transactions Table Component
-export const TransactionsTable = ({ analytics, isDark }) => {
+interface TransactionsTableProps {
+  analytics: {
+    recentTransactions: Array<{
+      displayDate: string;
+      displayAmount: number;
+      displayAccount: string;
+      confidencePercentage: string;
+      amount: string | number;
+      date?: string;
+      type?: string;
+      category?: string;
+      merchant?: string;
+      confidence?: number;
+      account?: string;
+    }>;
+  };
+  isDark: boolean;
+}
+
+export const TransactionsTable = ({
+  analytics,
+  isDark,
+}: TransactionsTableProps) => {
   if (analytics.recentTransactions.length === 0) return null;
 
   return (
@@ -350,7 +453,7 @@ export const TransactionsTable = ({ analytics, isDark }) => {
 };
 
 // Main Component
-const BankAnalytics = ({ transactions = [] }) => {
+const BankAnalytics = ({ transactions = [] }: Props) => {
   // Use the custom analytics hook
   const {
     analytics,

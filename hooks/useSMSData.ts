@@ -74,14 +74,32 @@ MESSAGES TO ANALYZE:
 
 export const useEnhancedSMSData = () => {
   const [hasPermission, setHasPermission] = useState(false);
-  const [allMessages, setAllMessages] = useState([]);
-  const [bankMessages, setBankMessages] = useState([]);
-  const [upiMessages, setUpiMessages] = useState([]);
+  const [allMessages, setAllMessages] = useState<TransactionMessage[]>([]);
+  const [bankMessages, setBankMessages] = useState<TransactionMessage[]>([]);
+  const [upiMessages, setUpiMessages] = useState<TransactionMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
 
   // Save categorized messages
-  const saveCategorizedMessages = async (messages) => {
+  interface TransactionMessage {
+    category: 'BANK' | 'UPI';
+    type: 'DEBIT' | 'CREDIT';
+    amount: string;
+    description: string;
+    originalMessage: string;
+    confidence: number;
+    isFinancial: boolean;
+    date: Date;
+    id: string;
+    hash: string;
+    processedAt: string;
+    rawSender: string;
+    batchNumber: number;
+    address: string;
+    body: string;
+  }
+
+  const saveCategorizedMessages = async (messages: TransactionMessage[]): Promise<void> => {
     try {
       const bankTxns = messages.filter(msg => msg.category === 'BANK');
       const upiTxns = messages.filter(msg => msg.category === 'UPI');
@@ -129,7 +147,13 @@ export const useEnhancedSMSData = () => {
     }
   };
 
-  const getMessageHash = (message) => {
+  interface Message {
+    address: string;
+    date: string;
+    body: string;
+  }
+
+  const getMessageHash = (message: Message): string => {
     return `${message.address}_${message.date}_${message.body.substring(0, 50)}`;
   };
 
@@ -143,7 +167,9 @@ export const useEnhancedSMSData = () => {
     }
   };
 
-  const saveMessageHashes = async (hashes) => {
+  interface MessageHash extends Array<string> {}
+
+  const saveMessageHashes = async (hashes: MessageHash): Promise<void> => {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.MESSAGE_HASHES, JSON.stringify(hashes));
     } catch (error) {
@@ -153,32 +179,66 @@ export const useEnhancedSMSData = () => {
 
 
 // Enhanced AI service call with better error handling and retry logic
-const callAIService = async (prompt, retryCount = 0) => {
-  const maxRetries = 2;
+// Interfaces
+interface AIRequestBody {
+  contents: {
+    role: string;
+    parts: { text: string }[];
+  }[];
+  generationConfig: {
+    temperature: number;
+    maxOutputTokens: number;
+    topP: number;
+    topK: number;
+    responseMimeType: string;
+  };
+}
+
+interface APIResponse {
+  candidates?: {
+    finishReason?: string;
+    content?: {
+      parts?: { text: string }[];
+    };
+  }[];
+}
+
+interface TransactionResult {
+  category: 'BANK' | 'UPI';
+  type: 'DEBIT' | 'CREDIT';
+  amount: string;
+  description: string;
+  originalMessage: string;
+  confidence: number;
+  isFinancial: boolean;
+}
+
+// Main function with types
+const callAIService = async (prompt: string, retryCount: number = 0): Promise<TransactionResult[]> => {
+  const maxRetries: number = 2;
   
   try {
-    const API_KEY = "AIzaSyAxUV2eIEt2hr4-iUHKXmZ1K3ePen3nqck"; 
-    const MODEL_ID = "gemini-2.5-flash-preview-05-20";
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:generateContent?key=${API_KEY}`;
+    const API_KEY: string = "AIzaSyAxUV2eIEt2hr4-iUHKXmZ1K3ePen3nqck"; 
+    const MODEL_ID: string = "gemini-2.5-flash-preview-05-20";
+    const endpoint: string = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:generateContent?key=${API_KEY}`;
 
-    const requestBody = {
+    const requestBody: AIRequestBody = {
       contents: [{
         role: "user",
         parts: [{ text: prompt }]
       }],
       generationConfig: {
         temperature: 1,
-        maxOutputTokens: 4096, // Increased token limit
+        maxOutputTokens: 4096,
         topP: 0.8,
         topK: 40,
-        // Add response format instruction
         responseMimeType: "application/json"
       }
     };
 
     console.log(`AI API Call - Attempt ${retryCount + 1}/${maxRetries + 1}`);
 
-    const response = await fetch(endpoint, {
+    const response: Response = await fetch(endpoint, {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
@@ -187,15 +247,13 @@ const callAIService = async (prompt, retryCount = 0) => {
       body: JSON.stringify(requestBody),
     });
 
-    // Log response status
     console.log(`API Response Status: ${response.status}`);
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData: any = await response.json().catch(() => ({}));
       console.error(`HTTP ${response.status}:`, errorData);
       
-      // Handle specific error codes
-      if (response.status === 429) { // Rate limit
+      if (response.status === 429) {
         console.log('Rate limited, waiting before retry...');
         await new Promise(resolve => setTimeout(resolve, 5000));
         if (retryCount < maxRetries) {
@@ -206,9 +264,8 @@ const callAIService = async (prompt, retryCount = 0) => {
       throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
     }
 
-    const data = await response.json();
+    const data: APIResponse = await response.json();
     
-    // Enhanced response validation
     if (!data) {
       throw new Error('Empty response from API');
     }
@@ -220,10 +277,8 @@ const callAIService = async (prompt, retryCount = 0) => {
 
     const candidate = data.candidates[0];
     
-    // Check for finish reason issues
     if (candidate.finishReason === 'MAX_TOKENS') {
       console.warn('Response truncated due to token limit');
-      // Don't throw error, try to parse what we have
     } else if (candidate.finishReason === 'SAFETY') {
       console.warn('Response blocked by safety filters');
       return [];
@@ -234,7 +289,6 @@ const callAIService = async (prompt, retryCount = 0) => {
     if (!candidate.content || !candidate.content.parts || !Array.isArray(candidate.content.parts) || candidate.content.parts.length === 0) {
       console.error('Invalid candidate structure:', candidate);
       
-      // If it's a MAX_TOKENS issue, try with smaller batch
       if (candidate.finishReason === 'MAX_TOKENS' && retryCount < maxRetries) {
         console.log('Retrying with token limit issue...');
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -244,7 +298,7 @@ const callAIService = async (prompt, retryCount = 0) => {
       throw new Error('No content in candidate');
     }
 
-    const responseText = candidate.content.parts[0].text;
+    const responseText: string = candidate.content.parts[0].text;
     
     if (!responseText || responseText.trim() === '') {
       console.error('Empty response text');
@@ -254,35 +308,29 @@ const callAIService = async (prompt, retryCount = 0) => {
     console.log(`Raw AI Response (first 200 chars): ${responseText.substring(0, 200)}...`);
     
     try {
-      // Enhanced JSON parsing with multiple fallbacks
-      let cleaned = responseText
+      let cleaned: string = responseText
         .replace(/```json\s*/gi, "")
         .replace(/```\s*/g, "")
-        .replace(/^\s*[\r\n]+/gm, "") // Remove empty lines
+        .replace(/^\s*[\r\n]+/gm, "")
         .trim();
       
-      // Remove any markdown formatting that might interfere
       cleaned = cleaned.replace(/\*\*(.*?)\*\*/g, '$1');
       
-      let parsed;
+      let parsed: TransactionResult[];
       
-      // Handle truncated JSON - try to fix common issues
       if (!cleaned.endsWith(']') && !cleaned.endsWith('}')) {
         console.warn('Response appears truncated, attempting to fix...');
         
-        // Try to close incomplete JSON structures
         if (cleaned.includes('[') && !cleaned.endsWith(']')) {
-          // Find the last complete object
-          const lastCompleteObject = cleaned.lastIndexOf('}');
+          const lastCompleteObject: number = cleaned.lastIndexOf('}');
           if (lastCompleteObject !== -1) {
             cleaned = cleaned.substring(0, lastCompleteObject + 1) + ']';
             console.log('Fixed truncated array');
           }
         } else if (cleaned.includes('{') && !cleaned.endsWith('}')) {
-          // Try to close incomplete object
-          const openBraces = (cleaned.match(/\{/g) || []).length;
-          const closeBraces = (cleaned.match(/\}/g) || []).length;
-          const missingBraces = openBraces - closeBraces;
+          const openBraces: number = (cleaned.match(/\{/g) || []).length;
+          const closeBraces: number = (cleaned.match(/\}/g) || []).length;
+          const missingBraces: number = openBraces - closeBraces;
           
           if (missingBraces > 0) {
             cleaned += '}'.repeat(missingBraces);
@@ -291,26 +339,22 @@ const callAIService = async (prompt, retryCount = 0) => {
         }
       }
       
-      // Try direct parsing first
       if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
         parsed = JSON.parse(cleaned);
       } else if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
         parsed = [JSON.parse(cleaned)];
       } else {
-        // Try to extract JSON from text
-        const jsonArrayMatch = cleaned.match(/\[[\s\S]*\]/);
-        const jsonObjectMatch = cleaned.match(/\{[\s\S]*\}/);
+        const jsonArrayMatch: RegExpMatchArray | null = cleaned.match(/\[[\s\S]*\]/);
+        const jsonObjectMatch: RegExpMatchArray | null = cleaned.match(/\{[\s\S]*\}/);
         
         if (jsonArrayMatch) {
           try {
             parsed = JSON.parse(jsonArrayMatch[0]);
           } catch (e) {
-            // Try to fix the matched JSON
-            let fixedJson = jsonArrayMatch[0];
+            let fixedJson: string = jsonArrayMatch[0];
             
-            // Fix common issues with truncated JSON
             if (!fixedJson.endsWith(']')) {
-              const lastCompleteObject = fixedJson.lastIndexOf('}');
+              const lastCompleteObject: number = fixedJson.lastIndexOf('}');
               if (lastCompleteObject !== -1) {
                 fixedJson = fixedJson.substring(0, lastCompleteObject + 1) + ']';
               }
@@ -326,16 +370,14 @@ const callAIService = async (prompt, retryCount = 0) => {
         }
       }
       
-      // Ensure we have an array
       if (!Array.isArray(parsed)) {
         parsed = [parsed];
       }
       
-      // Validate and filter results
-      const validResults = parsed.filter(item => {
+      const validResults: TransactionResult[] = parsed.filter(item => {
         if (!item || typeof item !== 'object') return false;
         
-        const hasRequired = item.isFinancial && 
+        const hasRequired: boolean | string = item.isFinancial && 
                            ['BANK', 'UPI'].includes(item.category) &&
                            ['DEBIT', 'CREDIT'].includes(item.type) &&
                            item.amount && item.originalMessage;
@@ -354,7 +396,6 @@ const callAIService = async (prompt, retryCount = 0) => {
       console.error("JSON parsing failed:", parseError);
       console.error("Raw response:", responseText);
       
-      // If retry available and it's a parsing error, try again
       if (retryCount < maxRetries) {
         console.log('Retrying due to parse error...');
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -367,11 +408,11 @@ const callAIService = async (prompt, retryCount = 0) => {
   } catch (error) {
     console.error("AI service error:", error);
     
-    // Retry on network errors
     if (retryCount < maxRetries && (
-      error.message.includes('network') || 
+      error instanceof Error &&
+      (error.message.includes('network') || 
       error.message.includes('timeout') ||
-      error.message.includes('fetch')
+      error.message.includes('fetch'))
     )) {
       console.log(`Retrying due to network error... (${retryCount + 1}/${maxRetries + 1})`);
       await new Promise(resolve => setTimeout(resolve, 3000));
@@ -383,12 +424,34 @@ const callAIService = async (prompt, retryCount = 0) => {
 };
 
 // Enhanced classification function with better batch handling
-const classifyBankAndUPITransactions = async (rawMessages) => {
+interface RawMessage {
+  address: string;
+  date: string;
+  body: string;
+}
+
+interface BatchMessage extends RawMessage {
+  id?: string;
+  hash?: string;
+}
+
+interface ClassifiedMessage extends TransactionResult {
+  date: Date;
+  id: string;
+  hash: string;
+  processedAt: string;
+  rawSender: string;
+  batchNumber: number;
+  address: string;
+  body: string;
+}
+
+const classifyBankAndUPITransactions = async (rawMessages: RawMessage[]): Promise<ClassifiedMessage[]> => {
   try {
     setProcessing(true);
     
-    const storedHashes = await getStoredHashes();
-    const newMessages = rawMessages.filter(msg => 
+    const storedHashes: string[] = await getStoredHashes();
+    const newMessages: RawMessage[] = rawMessages.filter(msg => 
       !storedHashes.includes(getMessageHash(msg))
     );
 
@@ -400,25 +463,23 @@ const classifyBankAndUPITransactions = async (rawMessages) => {
     console.log(`Processing ${newMessages.length} new messages for Bank/UPI transactions`);
 
     // Even smaller batch size for better reliability
-    const batchSize = 3; // Reduced from 5
-    const allClassifiedMessages = [];
-    let successfulBatches = 0;
-    let failedBatches = 0;
+    const batchSize: number = 3; // Reduced from 5
+    const allClassifiedMessages: ClassifiedMessage[] = [];
+    let successfulBatches: number = 0;
+    let failedBatches: number = 0;
 
     for (let i = 0; i < newMessages.length; i += batchSize) {
-      const batch = newMessages.slice(i, i + batchSize);
-      const batchNumber = Math.floor(i/batchSize) + 1;
-      const totalBatches = Math.ceil(newMessages.length/batchSize);
+      const batch: BatchMessage[] = newMessages.slice(i, i + batchSize);
+      const batchNumber: number = Math.floor(i/batchSize) + 1;
+      const totalBatches: number = Math.ceil(newMessages.length/batchSize);
       
       console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} messages)`);
       
-      // Create more structured prompt for this batch
-      const messagesToAnalyze = batch.map((msg, index) => 
+      const messagesToAnalyze: string = batch.map((msg, index) => 
         `MESSAGE ${index + 1}:\nSender: ${msg.address}\nContent: ${msg.body}\nDate: ${new Date(parseInt(msg.date)).toISOString()}\n---\n`
       ).join('');
 
-      // Enhanced prompt with stricter instructions and shorter format
-      const enhancedPrompt = `You are a specialized SMS classifier for BANK and UPI transactions ONLY.
+      const enhancedPrompt: string = `You are a specialized SMS classifier for BANK and UPI transactions ONLY.
 
 STRICT REQUIREMENTS - Return ONLY these two types:
 
@@ -436,16 +497,14 @@ ${messagesToAnalyze}
 Return only valid JSON array:`;
 
       try {
-        const response = await callAIService(enhancedPrompt);
+        const response: TransactionResult[] = await callAIService(enhancedPrompt);
         
         if (response && Array.isArray(response) && response.length > 0) {
-          const batchResults = response.map((aiResult) => {
-            // Find matching original message
-            const matchingMessage = batch.find(msg => {
-              const msgBody = msg.body.toLowerCase();
-              const aiOriginal = (aiResult.originalMessage || '').toLowerCase();
+          const batchResults: ClassifiedMessage[] = response.map((aiResult) => {
+            const matchingMessage: BatchMessage | undefined = batch.find(msg => {
+              const msgBody: string = msg.body.toLowerCase();
+              const aiOriginal: string = (aiResult.originalMessage || '').toLowerCase();
               
-              // More precise matching
               return msgBody.includes(aiOriginal.substring(0, 30)) || 
                      aiOriginal.includes(msgBody.substring(0, 30)) ||
                      (aiResult.amount && msgBody.includes(aiResult.amount.toString()));
@@ -464,7 +523,7 @@ Return only valid JSON array:`;
               };
             }
             return null;
-          }).filter(Boolean);
+          }).filter((msg): msg is ClassifiedMessage => msg !== null);
 
           allClassifiedMessages.push(...batchResults);
           console.log(`✓ Batch ${batchNumber}: Found ${batchResults.length} transactions`);
@@ -475,21 +534,19 @@ Return only valid JSON array:`;
         }
         
       } catch (batchError) {
-        console.error(`✗ Batch ${batchNumber} failed:`, batchError.message);
+        console.error(`✗ Batch ${batchNumber} failed:`, batchError instanceof Error ? batchError.message : String(batchError));
         failedBatches++;
       }
       
-      // Progressive delay - longer delays for later batches to avoid rate limiting
-      const delay = Math.min(2000 + (batchNumber * 100), 5000);
+      const delay: number = Math.min(2000 + (batchNumber * 100), 5000);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
 
-    // Update stored hashes only for successfully processed messages
-    const processedHashes = newMessages
+    const processedHashes: string[] = newMessages
       .filter((_, index) => Math.floor(index / batchSize) < successfulBatches)
       .map(getMessageHash);
     
-    const allHashes = [...storedHashes, ...processedHashes];
+    const allHashes: string[] = [...storedHashes, ...processedHashes];
     await saveMessageHashes(allHashes);
 
     console.log(`=== PROCESSING COMPLETE ===`);
@@ -515,24 +572,40 @@ Return only valid JSON array:`;
     const minDate = new Date(2025, 4, 1).getTime(); 
 
     return new Promise((resolve) => {
+      interface SMSMessage {
+        box: string;
+        maxCount: number;
+        minDate: number;
+      }
+
+      interface SMSItem {
+        address: string;
+        date: string;
+        body: string;
+        [key: string]: any; // For any additional fields
+      }
+
+      type SMSFailureCallback = (error: string) => void;
+      type SMSSuccessCallback = (count: number, smsList: string) => void;
+
       SmsAndroid.list(
-        JSON.stringify({ box: "inbox", maxCount: 1500, minDate }),
-        (fail) => {
+        JSON.stringify({ box: "inbox", maxCount: 1500, minDate } as SMSMessage),
+        ((fail: string) => {
           console.log("Failed to list SMS:", fail);
           setLoading(false);
           resolve([]);
-        },
-        (count, smsList) => {
+        }) as SMSFailureCallback,
+        ((count: number, smsList: string) => {
           try {
-            const arr = JSON.parse(smsList);
-            resolve(arr);
+        const arr: SMSItem[] = JSON.parse(smsList);
+        resolve(arr);
           } catch (parseError) {
-            console.warn("Failed to parse SMS list:", parseError);
-            resolve([]);
+        console.warn("Failed to parse SMS list:", parseError);
+        resolve([]);
           } finally {
-            setLoading(false);
+        setLoading(false);
           }
-        }
+        }) as SMSSuccessCallback
       );
     });
   };
@@ -566,7 +639,7 @@ Return only valid JSON array:`;
           index === self.findIndex(m => m.hash === msg.hash)
         );
 
-        uniqueMessages.sort((a, b) => new Date(b.date) - new Date(a.date));
+        uniqueMessages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         await saveCategorizedMessages(uniqueMessages);
         
