@@ -79,6 +79,11 @@ export const useEnhancedSMSData = () => {
   const [upiMessages, setUpiMessages] = useState<TransactionMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [processingLogs, setProcessingLogs] = useState<String[]>([]);
+
+  const addProcessingLogs =(log:string) =>{
+    setProcessingLogs(prev => [...prev, log]);
+  }
 
   // Save categorized messages
   interface TransactionMessage {
@@ -461,7 +466,7 @@ const classifyBankAndUPITransactions = async (rawMessages: RawMessage[]): Promis
     }
 
     console.log(`Processing ${newMessages.length} new messages for Bank/UPI transactions`);
-
+    addProcessingLogs(`Processing ${newMessages.length} new messages for Bank/UPI transactions`);
     // Even smaller batch size for better reliability
     const batchSize: number = 3; // Reduced from 5
     const allClassifiedMessages: ClassifiedMessage[] = [];
@@ -474,10 +479,13 @@ const classifyBankAndUPITransactions = async (rawMessages: RawMessage[]): Promis
       const totalBatches: number = Math.ceil(newMessages.length/batchSize);
       
       console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} messages)`);
+      addProcessingLogs(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} messages)`);
       
       const messagesToAnalyze: string = batch.map((msg, index) => 
         `MESSAGE ${index + 1}:\nSender: ${msg.address}\nContent: ${msg.body}\nDate: ${new Date(parseInt(msg.date)).toISOString()}\n---\n`
       ).join('');
+
+      
 
       const enhancedPrompt: string = `You are a specialized SMS classifier for BANK and UPI transactions ONLY.
 
@@ -528,14 +536,17 @@ Return only valid JSON array:`;
           allClassifiedMessages.push(...batchResults);
           console.log(`✓ Batch ${batchNumber}: Found ${batchResults.length} transactions`);
           successfulBatches++;
+          addProcessingLogs(`✓ Batch ${batchNumber}: Found ${batchResults.length} transactions`);
         } else {
           console.log(`○ Batch ${batchNumber}: No transactions found`);
           successfulBatches++;
+          addProcessingLogs(`○ Batch ${batchNumber}: No transactions found`);
         }
         
       } catch (batchError) {
         console.error(`✗ Batch ${batchNumber} failed:`, batchError instanceof Error ? batchError.message : String(batchError));
         failedBatches++;
+        addProcessingLogs(`✗ Batch ${batchNumber} failed: ${batchError instanceof Error ? batchError.message : String(batchError)}`);
       }
       
       const delay: number = Math.min(2000 + (batchNumber * 100), 5000);
@@ -550,14 +561,20 @@ Return only valid JSON array:`;
     await saveMessageHashes(allHashes);
 
     console.log(`=== PROCESSING COMPLETE ===`);
+    addProcessingLogs(`=== PROCESSING COMPLETE ===`);
     console.log(`Successful batches: ${successfulBatches}/${Math.ceil(newMessages.length/batchSize)}`);
+    setProcessingLogs(prev => [...prev, `Successful batches: ${successfulBatches}/${Math.ceil(newMessages.length/batchSize)}`]);
+
     console.log(`Failed batches: ${failedBatches}`);
+    addProcessingLogs(`Failed batches: ${failedBatches}`);
     console.log(`Total transactions found: ${allClassifiedMessages.length}`);
+    addProcessingLogs(`Total transactions found: ${allClassifiedMessages.length}`);
     
     return allClassifiedMessages;
     
   } catch (error) {
     console.error('Error in Bank/UPI classification:', error);
+    addProcessingLogs(`Error in Bank/UPI classification: ${error instanceof Error ? error.message : String(error)}`);
     return [];
   } finally {
     setProcessing(false);
@@ -616,16 +633,21 @@ Return only valid JSON array:`;
       if (!forceRefresh) {
         await loadCategorizedMessages();
       }
-
+      setProcessingLogs([])
       console.log('=== STARTING BANK & UPI SMS PROCESSING ===');
+      addProcessingLogs('=== STARTING BANK & UPI SMS PROCESSING ===')
 
       const rawMessages = await loadAllMessages();
       const safeRawMessages = Array.isArray(rawMessages) ? rawMessages : [];
 
       console.log(`Total SMS messages loaded: ${safeRawMessages.length}`);
+            addProcessingLogs(`Total SMS messages loaded: ${safeRawMessages.length}`);
+
       
       if (safeRawMessages.length === 0) {
         console.log('No messages found');
+              addProcessingLogs("No message found!!");
+
         return;
       }
 
@@ -752,7 +774,7 @@ Return only valid JSON array:`;
     forceRefresh,
     getSyncInfo,
     getTransactionStats,
-    
+    processingLogs,
     // Backward compatibility
     messages: allMessages,
     loadBankMessages: refreshMessages,

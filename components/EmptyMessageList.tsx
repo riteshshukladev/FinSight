@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useFonts, Lexend_400Regular } from "@expo-google-fonts/lexend";
 
 type EmptyMessagesListProps = {
   loading: boolean;
@@ -15,6 +16,9 @@ const EmptyMessagesList = ({
   onRefresh,
   fontsLoaded,
 }: EmptyMessagesListProps) => {
+  const [isLoaded] = useFonts({
+    Lexend_400Regular,
+  });
   if (loading) {
     return (
       <View style={[styles.emptyContainer, styles.loadingContainer]}>
@@ -90,7 +94,8 @@ const EmptyMessagesList = ({
               fontsLoaded && styles.fontFamily,
             ]}
           >
-            Make sure SMS permissions are granted
+            Make sure SMS permissions are granted if yes and it's intial setup
+            then press clear cache
           </Text>
         </View>
 
@@ -178,9 +183,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 8,
     lineHeight: 26,
+    fontFamily: "Lexend_400Regular",
   },
   emptyTitleDark: {
     color: "#CDCDCD",
+    fontFamily: "Lexend_400Regular",
+    lineHeight: 26,
   },
 
   emptySubtitle: {
@@ -190,9 +198,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 32,
     maxWidth: 280,
+    fontFamily: "Lexend_400Regular",
   },
   emptySubtitleDark: {
     color: "#999",
+    fontFamily: "Lexend_400Regular",
   },
 
   suggestionContainer: {

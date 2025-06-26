@@ -52,7 +52,7 @@ interface UseEnhancedSMSDataReturn {
   loading: boolean;
   processing: boolean;
   hasPermission: boolean;
-  
+  processingLogs: string[];
   // Functions
   refreshMessages: () => Promise<void> | void;
   forceRefresh: () => Promise<void> | void;

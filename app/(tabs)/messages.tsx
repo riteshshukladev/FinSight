@@ -44,8 +44,14 @@ export default function MessagesTab() {
     );
   }
 
-  const { messages, loading, loadBankMessages, forceRefresh, processing } =
-    smsData;
+  const {
+    messages,
+    loading,
+    loadBankMessages,
+    forceRefresh,
+    processing,
+    processingLogs,
+  } = smsData;
 
   const renderTransactionItem = ({ item }: any) => (
     <View
@@ -135,6 +141,7 @@ export default function MessagesTab() {
         fontsLoaded={fontsLoaded}
         loadingText={processing ? "Processing Messages..." : "Loading..."}
         subText={processing ? null : undefined}
+        processingLogs={processingLogs || []} 
       />
 
       <FlatList
@@ -152,6 +159,7 @@ export default function MessagesTab() {
             isDark={isDark}
             onRefresh={loadBankMessages}
             fontsLoaded={fontsLoaded}
+            processingLogs={processingLogs}
           />
         }
       />

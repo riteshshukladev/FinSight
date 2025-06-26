@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { Platform } from "react-native";
+import { Platform, TouchableOpacity } from "react-native";
 import { useFonts, Lexend_400Regular } from "@expo-google-fonts/lexend";
 
 export default function TabLayout() {
@@ -11,8 +11,15 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#2196F3",
+        tabBarActiveTintColor: "#c9d9e7",
         tabBarInactiveTintColor: "#666",
+        tabBarButton: (props) => (
+          <TouchableOpacity
+            {...props}
+            activeOpacity={0.7}
+            style={props.style}
+          />
+        ),
         tabBarStyle: {
           backgroundColor: "white",
           elevation: 0,
@@ -20,14 +27,24 @@ export default function TabLayout() {
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 4,
-          // Add these properties to fix positioning
           position: "absolute",
           bottom: 0,
           left: 0,
           right: 0,
-          height: Platform.OS === "ios" ? 85 : 65,
-          paddingBottom: Platform.OS === "ios" ? 25 : 10,
-          paddingTop: 8,
+          height: Platform.OS === "ios" ? 95 : 75, // Increased height
+          paddingBottom: Platform.OS === "ios" ? 25 : 15, // Adjusted padding
+          paddingTop: 12,
+          paddingHorizontal: 15, // Add horizontal padding for better spacing
+        },
+        tabBarLabelStyle: {
+          fontFamily: "Lexend_400Regular",
+          fontSize: 11, // Slightly larger for better readability
+          paddingBottom: 8,
+          fontWeight: "500",
+          marginTop: 2,
+        },
+        tabBarIconStyle: {
+          marginBottom: 2, // Adjust icon spacing
         },
         headerShown: false,
       }}
@@ -39,14 +56,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="analytics" size={24} color={color} />
           ),
-          tabBarLabelStyle: {
-            fontFamily: "Lexend_400Regular",
-            fontSize: 10,
-            // lineHeight: 12,
-            paddingBottom: 12,
-            fontWeight: "500",
-            // flex: 1,
-          },
         }}
       />
       <Tabs.Screen
@@ -56,13 +65,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="message" size={24} color={color} />
           ),
-          tabBarLabelStyle: {
-            fontFamily: "Lexend_400Regular",
-            fontSize: 10,
-            lineHeight: 16,
-            paddingBottom: 12,
-            fontWeight: "500",
-          },
         }}
       />
     </Tabs>

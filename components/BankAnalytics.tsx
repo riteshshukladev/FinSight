@@ -42,7 +42,7 @@ export const HeaderStats = ({ analytics, isDark }: HeaderStatsProps) => (
         </Text>
         <Text
           style={[styles.statLabel, isDark && styles.statLabelDark]}
-          // numberOfLines={1}
+          numberOfLines={1}
           ellipsizeMode="tail"
         >
           Credit
@@ -60,7 +60,7 @@ export const HeaderStats = ({ analytics, isDark }: HeaderStatsProps) => (
         </Text>
         <Text
           style={[styles.statLabel, isDark && styles.statLabelDark]}
-          // numberOfLines={1}
+          numberOfLines={1}
           ellipsizeMode="tail"
         >
           Debit
@@ -84,7 +84,10 @@ export const HeaderStats = ({ analytics, isDark }: HeaderStatsProps) => (
         ]}
       >
         <Text style={styles.statValue}>{analytics.transactionCount}</Text>
-        <Text style={[styles.statLabel, isDark && styles.statLabelDark]}>
+        <Text
+          style={[styles.statLabel, isDark && styles.statLabelDark]}
+          numberOfLines={1}
+        >
           Transactions
         </Text>
       </View>

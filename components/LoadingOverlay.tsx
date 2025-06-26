@@ -1,6 +1,14 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Animated, Easing } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  Easing,
+  ScrollView,
+} from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { Lexend_400Regular, useFonts } from "@expo-google-fonts/lexend";
 
 type LoadingOverlayProps = {
   visible: boolean;
@@ -8,6 +16,7 @@ type LoadingOverlayProps = {
   fontsLoaded: boolean;
   loadingText?: string;
   subText?: string | null;
+  processingLogs?: string[];
 };
 
 const LoadingOverlay = ({
@@ -16,7 +25,11 @@ const LoadingOverlay = ({
   fontsLoaded,
   loadingText = "Processing...",
   subText = null,
+  processingLogs = [],
 }: LoadingOverlayProps) => {
+  const [fontsLoadedRef] = useFonts({
+    Lexend_400Regular,
+  });
   const spinValue = useRef(new Animated.Value(0)).current;
   const fadeValue = useRef(new Animated.Value(0)).current;
   const scaleValue = useRef(new Animated.Value(0.8)).current;
@@ -156,6 +169,27 @@ const LoadingOverlay = ({
             />
           ))}
         </View>
+
+        {console.log("Processing logs:", processingLogs)}
+        {console.log(processingLogs.length > 0 ? "Logs available" : "No logs")}
+        {processingLogs.length > 0 && (
+          <ScrollView
+            style={[styles.logsContainer, isDark && styles.logsContainerDark]}
+          >
+            {processingLogs.map((log, index) => (
+              <Text
+                key={index}
+                style={[
+                  styles.logText,
+                  isDark && styles.logTextDark,
+                  fontsLoaded && styles.fontFamily,
+                ]}
+              >
+                {log}
+              </Text>
+            ))}
+          </ScrollView>
+        )}
       </Animated.View>
     </Animated.View>
   );
@@ -167,6 +201,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 10,
     backdropFilter: "blur(2px)", // May not work on all platforms
+    paddingHorizontal: 16,
   },
 
   loadingContainer: {
@@ -228,6 +263,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 8,
     lineHeight: 24,
+    fontFamily: "Lexend_400Regular",
   },
   loadingTextDark: {
     color: "#CDCDCD",
@@ -240,11 +276,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 16,
     maxWidth: 180,
+    fontFamily: "Lexend_400Regular",
   },
   subTextDark: {
     color: "#999",
   },
-
   dotsContainer: {
     flexDirection: "row",
     justifyContent: "center",
@@ -264,6 +300,27 @@ const styles = StyleSheet.create({
 
   fontFamily: {
     fontFamily: "Lexend_400Regular",
+  },
+  logsContainer: {
+    maxHeight: 200,
+    width: "100%",
+    marginTop: 16,
+    padding: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    borderRadius: 8,
+  },
+  logsContainerDark: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+  },
+  logText: {
+    fontSize: 12,
+    color: "#666",
+    marginBottom: 4,
+    fontFamily: "Lexend_400Regular", // Changed from monospace to Lexend
+    lineHeight: 18,
+  },
+  logTextDark: {
+    color: "#999",
   },
 });
 
