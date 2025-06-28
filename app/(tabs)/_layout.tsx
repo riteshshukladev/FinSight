@@ -1,29 +1,27 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { Platform, TouchableOpacity } from "react-native";
-import { useFonts, Lexend_400Regular } from "@expo-google-fonts/lexend";
+import { Platform, TouchableOpacity, useColorScheme } from "react-native";
 
 export default function TabLayout() {
-  let [fontsLoaded, fontError] = useFonts({
-    Lexend_400Regular,
-  });
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#c9d9e7",
-        tabBarInactiveTintColor: "#666",
+        tabBarActiveTintColor: isDark ? "#fff" : "#222",
+        tabBarInactiveTintColor: isDark ? "#9a9898" : "#888888",
         tabBarButton: (props) => (
           <TouchableOpacity
             {...props}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
             style={props.style}
           />
         ),
         tabBarStyle: {
-          backgroundColor: "white",
+          backgroundColor: isDark ? "#181818" : "white",
           elevation: 0,
-          shadowColor: "#000",
+          shadowColor: isDark ? "#fff" : "#000",
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 4,
@@ -31,20 +29,23 @@ export default function TabLayout() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: Platform.OS === "ios" ? 95 : 75, // Increased height
-          paddingBottom: Platform.OS === "ios" ? 25 : 15, // Adjusted padding
+          height: Platform.OS === "ios" ? 95 : 75,
+          paddingBottom: Platform.OS === "ios" ? 25 : 15,
           paddingTop: 12,
-          paddingHorizontal: 15, // Add horizontal padding for better spacing
+          paddingHorizontal: 15,
+          borderTopWidth: 0.5,
+          borderTopColor: isDark ? "#333" : "#e0e0e0",
         },
         tabBarLabelStyle: {
           fontFamily: "Lexend_400Regular",
-          fontSize: 11, // Slightly larger for better readability
+          fontSize: 11,
           paddingBottom: 8,
           fontWeight: "500",
           marginTop: 2,
+          color: isDark ? "#fff" : "#222",
         },
         tabBarIconStyle: {
-          marginBottom: 2, // Adjust icon spacing
+          marginBottom: 2,
         },
         headerShown: false,
       }}

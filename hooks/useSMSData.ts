@@ -634,8 +634,8 @@ Return only valid JSON array:`;
         await loadCategorizedMessages();
       }
       setProcessingLogs([])
-      console.log('=== STARTING BANK & UPI SMS PROCESSING ===');
-      addProcessingLogs('=== STARTING BANK & UPI SMS PROCESSING ===')
+      console.log('= STARTING BANK & UPI SMS PROCESSING =');
+      addProcessingLogs('** STARTING BANK & UPI SMS PROCESSING **');
 
       const rawMessages = await loadAllMessages();
       const safeRawMessages = Array.isArray(rawMessages) ? rawMessages : [];

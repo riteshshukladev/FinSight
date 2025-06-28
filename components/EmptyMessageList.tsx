@@ -56,19 +56,19 @@ const EmptyMessagesList = ({
         <MaterialIcons
           name="message"
           size={64}
-          color={isDark ? "#444" : "#ddd"}
+          color={isDark ? "#444" : "#5f5f5f"}
         />
       </View>
 
-      <Text
+      {/* <Text
         style={[
+          styles.fontFamily,
           styles.emptyTitle,
           isDark && styles.emptyTitleDark,
-          fontsLoaded && styles.fontFamily,
         ]}
       >
         No Bank Messages Found
-      </Text>
+      </Text> */}
 
       <Text
         style={[
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(241, 241, 241, 0.7)",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 12,
     borderWidth: 2,
     borderColor: "rgba(0, 0, 0, 0.1)",
   },
@@ -192,8 +192,8 @@ const styles = StyleSheet.create({
   },
 
   emptySubtitle: {
-    fontSize: 16,
-    color: "#666",
+    fontSize: 18,
+    color: "#696969",
     textAlign: "center",
     lineHeight: 22,
     marginBottom: 32,
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: "rgba(241, 241, 241, 0.7)",
+    backgroundColor: "rgba(162, 162, 162, 0.7)",
     borderWidth: 1,
     borderColor: "rgba(0, 0, 0, 0.1)",
   },

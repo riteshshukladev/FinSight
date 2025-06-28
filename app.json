@@ -62,7 +62,12 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-font",{
+          "fonts": ["node_modules/@expo-google-fonts/lexend/300Light/Lexand_300Light.ttf", "node_modules/@expo-google-fonts/lexend/400Regular/Lexend_400Regular.ttf", "node_modules/@expo-google-fonts/lexend/500Medium/Lexend_500Medium.ttf", "node_modules/@expo-google-fonts/lexend/600SemiBold/Lexend_600Medium.ttf"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

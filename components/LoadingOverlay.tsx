@@ -170,7 +170,6 @@ const LoadingOverlay = ({
           ))}
         </View>
 
-        {console.log("Processing logs:", processingLogs)}
         {console.log(processingLogs.length > 0 ? "Logs available" : "No logs")}
         {processingLogs.length > 0 && (
           <ScrollView
@@ -263,7 +262,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 8,
     lineHeight: 24,
-    fontFamily: "Lexend_400Regular",
+    fontFamily: "Lexend_500Medium",
   },
   loadingTextDark: {
     color: "#CDCDCD",
