@@ -1,5 +1,4 @@
 import { StyleSheet, Platform } from 'react-native';
-import { useFonts, Lexend_400Regular } from "@expo-google-fonts/lexend";
 
 export const styles = StyleSheet.create({
   container: {
@@ -21,7 +20,6 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#9c9c9c",
     marginBottom: 8,
-    fontFamily: "Lexend_400Regular",
   },
   headerDark: {
     backgroundColor: "rgba(24, 24, 24, 1)",
@@ -37,25 +35,26 @@ export const styles = StyleSheet.create({
 
   subtitle: {
     fontSize: 14,
-    fontWeight: "semibold",
     color: "#000000",
-    fontFamily: "Lexend_400Regular",
+    fontFamily: "Lexend_600SemiBold", // Use SemiBold instead of fontWeight
     lineHeight: 20,
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
   subtitleDark: {
     color: "#CDCDCD",
-    lineHeight: 20,
   },
 
   refreshButtonText: {
     color: "black",
     fontSize: 14,
-    fontWeight: "normal",
     paddingBottom: 0.5,
     borderBottomColor: "black",
     borderBottomWidth: 1,
     fontFamily: "Lexend_400Regular",
     lineHeight: 20,
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
   refreshButtonTextDark: {
     fontSize: 14,
@@ -84,6 +83,7 @@ export const styles = StyleSheet.create({
     borderLeftWidth: 4,
     overflow: "hidden",
     shadowColor: "#000",
+    minHeight: 80, // Ensure minimum height for content
   },
   itemDark: {
     backgroundColor: "#1e1e1e",
@@ -97,46 +97,52 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 6,
     width: "100%",
-    paddingVertical: 6,
+    paddingVertical: 8, // Increased padding
     borderWidth: 1,
     borderLeftWidth: 0,
     borderRightWidth: 0,
     paddingHorizontal: 12,
     flex: 1,
+    minHeight: 32, // Ensure minimum height
   },
 
   sender: {
-    fontWeight: "bold",
     fontSize: 14,
     color: "#000000",
-    lineHeight: 18,
-    fontFamily: "Lexend_400Regular",
+    fontFamily: "Lexend_700Bold", // Use Bold font instead of fontWeight
+    lineHeight: 20, // Increased line height
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
+    flexShrink: 1, // Allow text to shrink if needed
   },
   senderDark: {
     color: "#CDCDCD",
-    fontFamily: "Lexend_400Regular",
   },
 
   amount: {
     fontSize: 16,
-    fontWeight: "bold",
     color: "#000000",
-    lineHeight: 18,
-    fontFamily: "Lexend_400Regular",
+    fontFamily: "Lexend_700Bold", // Use Bold font instead of fontWeight
+    lineHeight: 22, // Increased line height
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
+    flexShrink: 0, // Don't shrink amount text
   },
   amountDark: {
     color: "#CDCDCD",
-    fontFamily: "Lexend_400Regular",
   },
 
   body: {
     fontSize: 14,
     color: "#000000",
     marginBottom: 6,
-    lineHeight: 18,
     fontFamily: "Lexend_400Regular",
+    lineHeight: 20, // Increased line height
     letterSpacing: 0.2,
     paddingHorizontal: 12,
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'top', // Android fix for multiline text
+    minHeight: 20, // Ensure minimum height
   },
   bodyDark: {
     color: "#CDCDCD",
@@ -145,15 +151,15 @@ export const styles = StyleSheet.create({
   date: {
     fontSize: 12,
     paddingHorizontal: 12,
-    paddingBottom: 6,
+    paddingBottom: 8, // Increased padding
     color: "#888",
-    fontStyle: "italic",
-    lineHeight: 18,
-    fontFamily: "Lexend_400Regular",
+    fontFamily: "Lexend_300Light", // Use Light font for italic effect
+    lineHeight: 18, // Increased line height
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
+    minHeight: 18, // Ensure minimum height
   },
   dateDark: {
     color: "#aaa",
   },
-
- 
 });

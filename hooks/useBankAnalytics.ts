@@ -24,7 +24,9 @@ const CHART_COLORS = [
 
 export const useBankAnalytics = (transactions: Transaction[] = []) => {
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const isDark = colorScheme === "dark"; 
+
+   
 
   // Calculate analytics data with AI-processed transactions
   const analytics = useMemo(() => {

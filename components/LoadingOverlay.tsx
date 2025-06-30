@@ -27,9 +27,7 @@ const LoadingOverlay = ({
   subText = null,
   processingLogs = [],
 }: LoadingOverlayProps) => {
-  const [fontsLoadedRef] = useFonts({
-    Lexend_400Regular,
-  });
+  
   const spinValue = useRef(new Animated.Value(0)).current;
   const fadeValue = useRef(new Animated.Value(0)).current;
   const scaleValue = useRef(new Animated.Value(0.8)).current;
@@ -262,10 +260,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 8,
     lineHeight: 24,
-    fontFamily: "Lexend_500Medium",
+    fontFamily: "Lexend_600Medium",
   },
   loadingTextDark: {
     color: "#CDCDCD",
+    fontFamily: "Lexend_600Medium",
   },
 
   subText: {

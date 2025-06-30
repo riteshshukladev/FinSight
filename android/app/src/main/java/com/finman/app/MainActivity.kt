@@ -1,4 +1,4 @@
-package com.anonymous.finman
+package com.finman.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

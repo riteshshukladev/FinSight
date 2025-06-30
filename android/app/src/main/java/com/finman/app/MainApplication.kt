@@ -1,4 +1,4 @@
-package com.anonymous.finman
+package com.finman.app
 
 import android.app.Application
 import android.content.res.Configuration

@@ -32,14 +32,14 @@ export default function TabLayout() {
           height: Platform.OS === "ios" ? 95 : 75,
           paddingBottom: Platform.OS === "ios" ? 25 : 15,
           paddingTop: 12,
-          paddingHorizontal: 15,
+          paddingHorizontal: 10,
           borderTopWidth: 0.5,
           borderTopColor: isDark ? "#333" : "#e0e0e0",
         },
         tabBarLabelStyle: {
           fontFamily: "Lexend_400Regular",
-          fontSize: 11,
-          paddingBottom: 8,
+          fontSize: 10,
+          paddingBottom: 6,
           fontWeight: "500",
           marginTop: 2,
           color: isDark ? "#fff" : "#222",
@@ -63,6 +63,7 @@ export default function TabLayout() {
         name="messages"
         options={{
           title: "Messages",
+
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="message" size={24} color={color} />
           ),

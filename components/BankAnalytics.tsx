@@ -3,9 +3,20 @@ import { Text, View, Dimensions, ScrollView } from "react-native";
 import { BarChart, LineChart, PieChart } from "react-native-chart-kit";
 import { useBankAnalytics } from "../hooks/useBankAnalytics";
 import { styles } from "../styles/bankAnalyticsStyles";
+import { SafeAreaView } from "react-native-safe-area-context";
+import LoadingOverlay from "@/components/LoadingOverlay";
 
 const { width: screenWidth } = Dimensions.get("window");
 import { SMSMessage } from "@/types/type";
+
+import {
+  useFonts,
+  Lexend_300Light,
+  Lexend_400Regular,
+  Lexend_500Medium,
+  Lexend_600SemiBold,
+  Lexend_700Bold,
+} from "@expo-google-fonts/lexend";
 
 // Calculate chart width accounting for all padding and margins
 const CONTAINER_PADDING = 4;
@@ -434,8 +445,8 @@ export const TransactionsTable = ({
                       parseFloat(transaction.confidencePercentage) > 70
                         ? "#4CAF50"
                         : parseFloat(transaction.confidencePercentage) > 40
-                        ? "#FFC107"
-                        : "#F44336",
+                          ? "#FFC107"
+                          : "#F44336",
                   },
                 ]}
               />
@@ -458,6 +469,15 @@ export const TransactionsTable = ({
 // Main Component
 const BankAnalytics = ({ transactions = [] }: Props) => {
   // Use the custom analytics hook
+
+  // Load multiple font weights
+  let [fontsLoaded] = useFonts({
+    Lexend_300Light,
+    Lexend_400Regular,
+    Lexend_500Medium,
+    Lexend_600SemiBold,
+    Lexend_700Bold,
+  });
   const {
     analytics,
     chartConfig,
@@ -466,6 +486,22 @@ const BankAnalytics = ({ transactions = [] }: Props) => {
     pieChartData,
     isDark,
   } = useBankAnalytics(transactions);
+
+  if (!fontsLoaded) {
+    return (
+      <SafeAreaView
+        style={[styles.container, isDark && styles.containerDark]}
+        edges={["top"]}
+      >
+        <LoadingOverlay
+          visible={true}
+          isDark={isDark}
+          fontsLoaded={false}
+          loadingText="Loading Fonts..."
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <ScrollView>

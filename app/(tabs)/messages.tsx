@@ -12,12 +12,24 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useSMSDataContext } from "../../hooks/SMSDataContext";
 import { MaterialIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { useFonts, Lexend_400Regular } from "@expo-google-fonts/lexend";
+import {
+  useFonts,
+  Lexend_300Light,
+  Lexend_400Regular,
+  Lexend_500Medium,
+  Lexend_600SemiBold,
+  Lexend_700Bold,
+} from "@expo-google-fonts/lexend";
 import { styles } from "@/styles/messagesStyles";
 
 export default function MessagesTab() {
+  // Load multiple font weights
   let [fontsLoaded] = useFonts({
+    Lexend_300Light,
     Lexend_400Regular,
+    Lexend_500Medium,
+    Lexend_600SemiBold,
+    Lexend_700Bold,
   });
 
   const colorScheme = useColorScheme();
@@ -100,6 +112,22 @@ export default function MessagesTab() {
     </View>
   );
 
+  if (!fontsLoaded) {
+    return (
+      <SafeAreaView
+        style={[styles.container, isDark && styles.containerDark]}
+        edges={["top"]}
+      >
+        <LoadingOverlay
+          visible={true}
+          isDark={isDark}
+          fontsLoaded={false}
+          loadingText="Loading Fonts..."
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView
       style={[styles.container, isDark && styles.containerDark]}
@@ -141,7 +169,7 @@ export default function MessagesTab() {
         fontsLoaded={fontsLoaded}
         loadingText={processing ? "Processing Messages..." : "Loading..."}
         subText={processing ? null : undefined}
-        processingLogs={processingLogs || []} 
+        processingLogs={processingLogs || []}
       />
 
       <FlatList

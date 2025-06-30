@@ -678,6 +678,7 @@ Return only valid JSON array:`;
     if (Platform.OS === 'android') {
       request(PERMISSIONS.ANDROID.READ_SMS)
         .then((result) => {
+          // navigate.navigate('messages');
           if (result === RESULTS.GRANTED) {
             setHasPermission(true);
             loadCategorizedMessages().then(() => {

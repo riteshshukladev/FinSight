@@ -31,6 +31,8 @@ export const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 8,
     color: "#333",
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
   aiTextDark: {
     color: "#fff",
@@ -98,6 +100,8 @@ export const styles = StyleSheet.create({
     }),
     lineHeight: 20,
     paddingRight: 12,
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
 
   statLabel: {
@@ -107,7 +111,9 @@ export const styles = StyleSheet.create({
     fontFamily: "Lexend_400Regular",
     lineHeight: 20,
     fontWeight: "500",
-    paddingRight:4,
+    paddingRight: 4,
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
   statLabelDark: {
     color: "#000000",
@@ -139,6 +145,8 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     fontFamily: "Lexend_400Regular",
     lineHeight: 20,
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
   chartTitleDark: {
     color: "#CDCDCD",
@@ -172,6 +180,8 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     fontFamily: "Lexend_400Regular",
     lineHeight: 24,
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
   sectionTitleDark: {
     color: "#CDCDCD",
@@ -189,12 +199,16 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     flex: 1,
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
 
   insightValue: {
     fontSize: 14,
     fontWeight: "bold",
     color: "#333",
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
 
   merchantsSection: {
@@ -236,6 +250,8 @@ export const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
     marginBottom: 4,
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
   merchantNameDark: {
     color: "#fff",
@@ -244,6 +260,8 @@ export const styles = StyleSheet.create({
   merchantCount: {
     fontSize: 12,
     color: "#666",
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
   merchantCountDark: {
     color: "#ccc",
@@ -253,6 +271,8 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "bold",
     color: "#2196F3",
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
   merchantAmountDark: {
     color: "#64B5F6",
@@ -288,6 +308,8 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     fontFamily: "Lexend_400Regular",
     lineHeight: 20,
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
   tableHeaderTextDark: {
     color: "#CDCDCD",
@@ -314,6 +336,8 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     fontFamily: "Lexend_400Regular",
     lineHeight: 20,
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
   tableCellTextDark: {
     color: "#ccc",
@@ -361,6 +385,8 @@ export const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "Lexend_400Regular",
     lineHeight: 16,
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
 
   // Confidence bar styles
@@ -387,6 +413,8 @@ export const styles = StyleSheet.create({
   confidenceText: {
     fontSize: 9,
     color: "#666666",
+    includeFontPadding: false, // Android fix
+    textAlignVertical: 'center', // Android fix
   },
   confidenceTextDark: {
     color: "#ccc",
