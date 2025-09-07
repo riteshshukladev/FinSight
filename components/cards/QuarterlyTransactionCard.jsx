@@ -1,25 +1,46 @@
-// ...existing code...
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
-import { useSMSDataContext } from "../../hooks/SMSDataContext"; 
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Platform,
+} from "react-native";
+import { useSMSDataContext } from "../../hooks/SMSDataContext";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
-export default function QuarterlyTransactionCard() {
-  const smsData = useSMSDataContext(); 
+export default function QuarterlyTransactionCard({ onStartProcessing }) {
+  const smsData = useSMSDataContext();
+
+  // Existing context values
+  const processing = smsData?.processing;
+  const forceRefresh = smsData?.forceRefresh;
+
+  // Newly expected context values (defensive fallback if not yet implemented)
+  const processingCutoff = smsData?.processingCutoff || null;
+  const setProcessingCutoff =
+    smsData?.setProcessingCutoff ||
+    (() => {
+      /* no-op until implemented */
+    });
+
+  const [showPicker, setShowPicker] = useState(false);
 
   const onProcess = () => {
-    // Confirm before clearing cache
+    if (processing) return; 
     Alert.alert(
-      "Clear cache",
-      "This will clear stored messages and reprocess SMS data. Continue?",
+      "Clear & Process",
+      "This will clear cached data and reprocess SMS data. Continue?",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Yes",
           onPress: async () => {
             try {
-              if (smsData && smsData.forceRefresh) {
-                await smsData.forceRefresh(); // <-- trigger clear cache / reprocess
-                Alert.alert("Done", "Cache cleared and processing started.");
+              onStartProcessing?.(); // trigger UI animation immediately
+              if (forceRefresh) {
+                await forceRefresh();
               } else {
                 Alert.alert("Unavailable", "SMS data not initialized.");
               }
@@ -32,9 +53,12 @@ export default function QuarterlyTransactionCard() {
     );
   };
 
+  const cutoffLabel = processingCutoff
+    ? processingCutoff.toLocaleDateString()
+    : "All time";
+
   return (
     <View style={styles.card}>
-      {/* Top row: CTA text (left) + button (right) */}
       <View style={styles.topRow}>
         <View style={styles.copyCol}>
           <Text style={styles.beginTitle}>Let’s Begin!!</Text>
@@ -43,38 +67,75 @@ export default function QuarterlyTransactionCard() {
 
         <TouchableOpacity
           onPress={onProcess}
-          activeOpacity={0.9}
-          style={styles.ctaBtn}
+          disabled={processing}
+          activeOpacity={0.85}
+          style={[styles.ctaBtn, processing && { opacity: 0.55 }]}
         >
-          <Text style={styles.ctaText}>process</Text>
+          <Text style={styles.ctaText}>
+            {processing ? "processing..." : "process"}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Keep your amount + date anchored at the bottom-right */}
+      {/* Cutoff Date Selector (only if setter exists) */}
+      {setProcessingCutoff !== null && (
+        <View style={styles.cutoffRow}>
+          <Text style={styles.cutoffLabel}>Since:</Text>
+          <TouchableOpacity
+            style={styles.cutoffBtn}
+            onPress={() => setShowPicker(true)}
+            activeOpacity={0.85}
+            disabled={processing}
+          >
+            <Text style={styles.cutoffBtnText}>{cutoffLabel}</Text>
+          </TouchableOpacity>
+          {processingCutoff && (
+            <TouchableOpacity
+              onPress={() => setProcessingCutoff(null)}
+              style={styles.clearBtn}
+              disabled={processing}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.clearBtnText}>×</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {showPicker && (
+        <DateTimePicker
+          mode="date"
+          value={
+            processingCutoff || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          }
+          maximumDate={new Date()}
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={(e, date) => {
+            setShowPicker(false);
+            if (date) setProcessingCutoff(date);
+          }}
+        />
+      )}
     </View>
   );
 }
-
-
 
 const RADIUS = 28;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#B24C51", // clay
+    backgroundColor: "#B24C51",
     borderRadius: RADIUS,
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 18,
-    minHeight: 180,
+    minHeight: 200,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
     shadowRadius: 12,
     elevation: 8,
   },
-
-  /* TOP CONTENT */
   topRow: {
     flexDirection: "column",
     alignItems: "center",
@@ -97,10 +158,11 @@ const styles = StyleSheet.create({
     fontFamily: "Lexend_400Regular",
     fontSize: 14,
     color: "rgba(255,255,255,0.9)",
+    textAlign: "center",
   },
   ctaBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
     borderRadius: 999,
     backgroundColor: "rgba(255, 255, 255, 0.22)",
     borderWidth: 1,
@@ -114,22 +176,42 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
 
-  /* BOTTOM RIGHT METRICS (unchanged) */
-  rightBlock: {
-    position: "absolute",
-    right: 16,
-    bottom: 16,
-    alignItems: "flex-end",
+  cutoffRow: {
+    marginTop: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
-  amount: {
-    fontFamily: "Lexend_700Bold",
-    fontSize: 28,
-    color: "#F6F6F6",
-  },
-  date: {
-    marginTop: 6,
-    fontFamily: "Lexend_400Regular",
+  cutoffLabel: {
+    fontFamily: "Lexend_500Medium",
     fontSize: 13,
     color: "rgba(255,255,255,0.85)",
+  },
+  cutoffBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  cutoffBtnText: {
+    fontFamily: "Lexend_500Medium",
+    fontSize: 13,
+    color: "#FFF",
+  },
+  clearBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  clearBtnText: {
+    fontFamily: "Lexend_600SemiBold",
+    fontSize: 18,
+    color: "#FFF",
+    lineHeight: 20,
   },
 });

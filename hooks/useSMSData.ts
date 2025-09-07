@@ -80,6 +80,7 @@ export const useEnhancedSMSData = () => {
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [processingLogs, setProcessingLogs] = useState<String[]>([]);
+  const [processingCutoff, setProcessingCutoff] = useState<Date | null>(null); // <-- add (if not present)
 
   const addProcessingLogs =(log:string) =>{
     setProcessingLogs(prev => [...prev, log]);
@@ -223,7 +224,7 @@ const callAIService = async (prompt: string, retryCount: number = 0): Promise<Tr
   const maxRetries: number = 2;
   
   try {
-    const API_KEY: string = "AIzaSyAxUV2eIEt2hr4-iUHKXmZ1K3ePen3nqck"; 
+    const API_KEY: string = "AIzaSyDZ0NzMwfIuPBpoeuE6s6E00KXANQvP0Fg"; 
     const MODEL_ID: string = "gemini-2.5-flash-preview-05-20";
     const endpoint: string = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:generateContent?key=${API_KEY}`;
 
@@ -583,30 +584,22 @@ Return only valid JSON array:`;
 
   // Load SMS messages
   const loadAllMessages = async () => {
-    if (!hasPermission || !SmsAndroid) return;
+    if (!hasPermission || !SmsAndroid) return [];
 
     setLoading(true);
-    const minDate = new Date(2025, 4, 1).getTime(); 
+
+    const DEFAULT_MIN_DATE = new Date(2025, 4, 1).getTime();
+    const cutoffStart = getCutoffStart();
+    const minDate = cutoffStart ?? DEFAULT_MIN_DATE;
 
     return new Promise((resolve) => {
-      interface SMSMessage {
-        box: string;
-        maxCount: number;
-        minDate: number;
-      }
-
-      interface SMSItem {
-        address: string;
-        date: string;
-        body: string;
-        [key: string]: any; // For any additional fields
-      }
-
+      interface SMSMessage { box: string; maxCount: number; minDate: number; }
+      interface SMSItem { _id: string; address: string; date: string; body: string; }
       type SMSFailureCallback = (error: string) => void;
       type SMSSuccessCallback = (count: number, smsList: string) => void;
 
       SmsAndroid.list(
-        JSON.stringify({ box: "inbox", maxCount: 1500, minDate } as SMSMessage),
+        JSON.stringify({ box: "inbox", maxCount: 2000, minDate } as SMSMessage),
         ((fail: string) => {
           console.log("Failed to list SMS:", fail);
           setLoading(false);
@@ -614,62 +607,90 @@ Return only valid JSON array:`;
         }) as SMSFailureCallback,
         ((count: number, smsList: string) => {
           try {
-        const arr: SMSItem[] = JSON.parse(smsList);
-        resolve(arr);
+            const arr: SMSItem[] = JSON.parse(smsList);
+            resolve(arr);
           } catch (parseError) {
-        console.warn("Failed to parse SMS list:", parseError);
-        resolve([]);
+            console.warn("Failed to parse SMS list:", parseError);
+            resolve([]);
           } finally {
-        setLoading(false);
+            setLoading(false);
           }
         }) as SMSSuccessCallback
       );
     });
   };
 
-  // Main processing function
+  // Main processing (modified to constrain to selected day if any)
   const processBankAndUPITransactions = async (forceRefresh = false) => {
     try {
       if (!forceRefresh) {
         await loadCategorizedMessages();
       }
-      setProcessingLogs([])
-      console.log('= STARTING BANK & UPI SMS PROCESSING =');
-      addProcessingLogs('** STARTING BANK & UPI SMS PROCESSING **');
+      setProcessingLogs([]);
+      console.log("= STARTING BANK & UPI SMS PROCESSING =");
+      addProcessingLogs("** STARTING BANK & UPI SMS PROCESSING **");
 
       const rawMessages = await loadAllMessages();
       const safeRawMessages = Array.isArray(rawMessages) ? rawMessages : [];
 
       console.log(`Total SMS messages loaded: ${safeRawMessages.length}`);
-            addProcessingLogs(`Total SMS messages loaded: ${safeRawMessages.length}`);
+      addProcessingLogs(`Total SMS messages loaded: ${safeRawMessages.length}`);
 
-      
-      if (safeRawMessages.length === 0) {
-        console.log('No messages found');
-              addProcessingLogs("No message found!!");
+      // SINCE-date filtering (inclusive) if user selected a cutoff
+      const cutoffStart = getCutoffStart();
+      let sinceMessages = safeRawMessages;
+      if (cutoffStart) {
+        sinceMessages = safeRawMessages.filter((m: any) => {
+          const ts = parseInt(m.date);
+            return !isNaN(ts) && ts >= cutoffStart;
+        });
+        addProcessingLogs(
+          `Filtered since ${new Date(cutoffStart).toLocaleDateString()}: ${sinceMessages.length} msgs`
+        );
+        console.log(
+          `Filtered since cutoff (${new Date(cutoffStart).toISOString()}): ${sinceMessages.length} messages`
+        );
+      }
 
+      if (sinceMessages.length === 0) {
+        console.log("No messages found in selected range");
+        addProcessingLogs("No messages found in selected range");
         return;
       }
 
-      const newClassifiedMessages = await classifyBankAndUPITransactions(safeRawMessages);
-      
+      // Classify only messages in range
+      const newClassifiedMessages =
+        await classifyBankAndUPITransactions(sinceMessages);
+
       if (newClassifiedMessages.length > 0) {
-        const existingMessages = forceRefresh ? [] : await loadCategorizedMessages();
-        const allMessages = [...(Array.isArray(existingMessages) ? existingMessages : []), ...newClassifiedMessages];
-        
-        const uniqueMessages = allMessages.filter((msg, index, self) => 
-          index === self.findIndex(m => m.hash === msg.hash)
+        const existingMessages = forceRefresh
+          ? []
+          : await loadCategorizedMessages();
+        const allMessagesMerged = [
+          ...(Array.isArray(existingMessages) ? existingMessages : []),
+          ...newClassifiedMessages,
+        ];
+        const uniqueMessages = allMessagesMerged.filter(
+          (msg, index, self) =>
+            index === self.findIndex((m) => m.hash === msg.hash)
         );
-
-        uniqueMessages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
+        uniqueMessages.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
         await saveCategorizedMessages(uniqueMessages);
-        
-        console.log(`=== FINAL RESULT ===`);
-        console.log(`Total unique Bank & UPI transactions: ${uniqueMessages.length}`);
+        console.log("=== FINAL RESULT ===");
+        console.log(
+          `Total unique Bank & UPI transactions: ${uniqueMessages.length}`
+        );
+        addProcessingLogs(
+          `Unique transactions saved: ${uniqueMessages.length}`
+        );
       }
     } catch (error) {
-      console.error('Error processing Bank & UPI transactions:', error);
+      console.error("Error processing Bank & UPI transactions:", error);
+      addProcessingLogs(
+        `Error: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   };
 
@@ -725,11 +746,11 @@ Return only valid JSON array:`;
     await processBankAndUPITransactions(false);
   };
 
+  // (KEEP this one) Single forceRefresh definition
   const forceRefresh = async () => {
     setLoading(true);
     setProcessing(true);
     try {
-      // Clear all stored data
       await AsyncStorage.multiRemove([
         STORAGE_KEYS.PROCESSED_MESSAGES,
         STORAGE_KEYS.MESSAGE_HASHES,
@@ -737,7 +758,6 @@ Return only valid JSON array:`;
         STORAGE_KEYS.CATEGORIES.BANK,
         STORAGE_KEYS.CATEGORIES.UPI
       ]);
-      
       await processBankAndUPITransactions(true);
     } finally {
       setLoading(false);
@@ -759,25 +779,33 @@ Return only valid JSON array:`;
     }
   };
 
+  // Helper: start-of-day timestamp for "since" filtering
+  const getCutoffStart = (): number | null => {
+    if (!processingCutoff) return null;
+    const d = new Date(processingCutoff);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  };
+
   return {
     // Messages
     allMessages,
     bankMessages,
     upiMessages,
-    
     // State
     loading,
     processing,
     hasPermission,
-    
+    processingCutoff,
+    processingLogs,
     // Functions
     refreshMessages,
     forceRefresh,
     getSyncInfo,
     getTransactionStats,
-    processingLogs,
     // Backward compatibility
     messages: allMessages,
     loadBankMessages: refreshMessages,
+    setProcessingCutoff,  // ensure setter is exposed (if not already)
   };
 };

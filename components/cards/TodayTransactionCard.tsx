@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,12 +7,21 @@ import {
   LayoutChangeEvent,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+  interpolate,
+} from "react-native-reanimated";
 
 type Props = {
   isExpanded: boolean;
   onExpand: () => void;
   onCollapse: () => void;
-  onHeightChange?: (h: number) => void; // <-- NEW
+  onHeightChange?: (h: number) => void;
+  extraHeight?: number;
+  collapsedHeight?: number;
 };
 
 export default function TodayTransactionCard({
@@ -20,55 +29,88 @@ export default function TodayTransactionCard({
   onExpand,
   onCollapse,
   onHeightChange,
+  extraHeight = 0,
+  collapsedHeight = 220,
 }: Props) {
-  const handleLayout = (e: LayoutChangeEvent) => {
-    onHeightChange?.(e.nativeEvent.layout.height); // report actual height to parent
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const expandedHeight = 460 + extraHeight;
+  const targetHeight = isCollapsed ? collapsedHeight : expandedHeight;
+
+  // shared value for height & a progress for subtle content effects
+  const heightSV = useSharedValue(targetHeight);
+  const progress = useSharedValue(isCollapsed ? 0 : 1);
+
+  useEffect(() => {
+    heightSV.value = withTiming(targetHeight, {
+      duration: 520,
+      easing: Easing.out(Easing.cubic),
+    });
+    progress.value = withTiming(isCollapsed ? 0 : 1, {
+      duration: 420,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [targetHeight, isCollapsed]);
+
+  const handleLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      onHeightChange?.(e.nativeEvent.layout.height);
+    },
+    [onHeightChange]
+  );
+
+  const toggle = () => {
+    setIsCollapsed((c) => !c);
   };
+
+  const cardAnimStyle = useAnimatedStyle(() => ({
+    height: heightSV.value,
+  }));
+
+  const contentAnim = useAnimatedStyle(() => {
+    const opacity = interpolate(progress.value, [0, 1], [0.55, 1]);
+    const translateY = interpolate(progress.value, [0, 1], [-10, 0]);
+    return {
+      opacity,
+      transform: [{ translateY }],
+    };
+  });
 
   return (
     <TouchableOpacity
       activeOpacity={0.9}
-      onPress={!isExpanded ? onExpand : undefined}
+      onPress={isCollapsed ? toggle : undefined}
     >
-      <View style={styles.card} onLayout={handleLayout}>
-        {/* top-right control: dotted ring (collapsed) / close (expanded) */}
+      <Animated.View
+        style={[styles.card, cardAnimStyle]}
+        onLayout={handleLayout}
+      >
         <TouchableOpacity
           style={styles.topRight}
-          onPress={isExpanded ? onCollapse : onExpand}
-          activeOpacity={0.9}
+          onPress={toggle}
+          activeOpacity={0.85}
         >
-          {isExpanded ? (
-            <View style={styles.closeBtn}>
-              <Ionicons name="close" size={18} color="#fff" />
-            </View>
-          ) : (
-            <>
-              <View style={styles.dottedOuter} />
-              <View style={styles.dottedInner}>
-                <Ionicons
-                  name="open-outline"
-                  size={18}
-                  color="rgba(0,0,0,0.85)"
-                />
-              </View>
-            </>
-          )}
+          <View style={styles.dottedInner}>
+            <Ionicons
+              name={isCollapsed ? "chevron-up" : "chevron-down"}
+              size={20}
+              color="rgba(0,0,0,0.85)"
+            />
+          </View>
         </TouchableOpacity>
 
-        {/* CENTERED CONTENT (no flex:1, so height grows with content) */}
-        <View style={styles.centerWrap}>
-          <View style={styles.logoCircle} />
-          <Text style={styles.brand}>finman</Text>
-          <Text style={styles.blurb}>
-            {`it’s problematic to where your money
-is flowing. But not anymore.
-Let us manage your finance related query and 
-problems, by making sure we collect and process them
-accordingly with the help of AI and make your life
-a little stress free. That much i can do.`}
+        <Animated.View style={contentAnim}>
+          <Text style={styles.title}>Today’s Activity</Text>
+          <Text style={styles.subtitle}>
+            {isCollapsed ? "Collapsed preview" : "Daily snapshot"}
           </Text>
+        </Animated.View>
+
+        <View style={styles.rightBlock}>
+          <Text style={styles.amount}>12</Text>
+          <Text style={styles.date}>Now</Text>
         </View>
-      </View>
+      </Animated.View>
     </TouchableOpacity>
   );
 }
@@ -77,19 +119,31 @@ const RADIUS = 28;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#EC6B3D",
+    backgroundColor: "#4C89D9",
     borderRadius: RADIUS,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingTop: 18,
-    paddingBottom: 22,
-    minHeight: 460, // can grow beyond this; we’ll measure actual height
+    paddingBottom: 18,
+    // minHeight removed to allow collapse animation
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
     shadowRadius: 12,
     elevation: 8,
+    overflow: "hidden",
   },
-
+  title: {
+    fontFamily: "Lexend_600SemiBold",
+    fontSize: 28,
+    color: "#F6F6F6",
+    lineHeight: 34,
+  },
+  subtitle: {
+    marginTop: 8,
+    fontFamily: "Lexend_400Regular",
+    fontSize: 15,
+    color: "rgba(255,255,255,0.85)",
+  },
   topRight: {
     position: "absolute",
     right: 12,
@@ -98,13 +152,7 @@ const styles = StyleSheet.create({
     height: 34,
     alignItems: "center",
     justifyContent: "center",
-  },
-  dottedOuter: {
-    ...StyleSheet.absoluteFillObject,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: "rgba(0,0,0,0.55)",
-    borderRadius: 22,
+    zIndex: 10,
   },
   dottedInner: {
     width: 28,
@@ -114,40 +162,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    alignItems: "center",
-    justifyContent: "center",
+  rightBlock: {
+    position: "absolute",
+    right: 16,
+    bottom: 16,
+    alignItems: "flex-end",
   },
-
-  centerWrap: {
-    alignItems: "center", // center horizontally
-    gap: 10,
-  },
-  logoCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.35)",
-  },
-  brand: {
-    fontFamily: "Lexend_700Bold",
-    fontSize: 22,
-    color: "#fff",
-    letterSpacing: 0.5,
-    textTransform: "lowercase",
-  },
-  blurb: {
+  amount: { fontFamily: "Lexend_700Bold", fontSize: 32, color: "#F6F6F6" },
+  date: {
     marginTop: 6,
     fontFamily: "Lexend_400Regular",
     fontSize: 13,
-    lineHeight: 19,
-    color: "rgba(255,255,255,0.95)",
-    textAlign: "center",
+    color: "rgba(255,255,255,0.85)",
   },
 });
