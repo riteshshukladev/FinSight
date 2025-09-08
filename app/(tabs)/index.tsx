@@ -56,8 +56,12 @@ const BOTTOM_GAP = 16; // space above tab bar for quarterly card
 const TOP_MIN_GAP = 32; // minimum breathing space at top
 const STACK_SHIFT = 18; // slightly larger overlap so hidden bottoms are covered
 const GLOBAL_STACK_OFFSET = 4; // push entire stack a little lower
-const FINE_LAYER_SHIFT = 1; // new: subtle extra drop per depth layer
-const EXTRA_HIDE_SHIFT = 2; // NEW: extra 2px downward push to hide edges
+const FINE_LAYER_SHIFT = 1; // subtle extra drop per depth layer
+const EXTRA_HIDE_SHIFT = 5; // base extra push
+const WEEK_EXTRA_PUSH = 6; // existing week push
+const MONTH_EXTRA_PUSH = 8; // existing month push
+const TODAY_EXTRA_PUSH = 22; // increased (was 10) to push Today card further down
+const WEEK_DEEPER_PUSH = 10; // NEW additional push for week
 
 type DetailCard = "today" | "week" | "month" | "quarter" | null;
 
@@ -148,11 +152,24 @@ export default function Deck() {
 
     // Apply back-stack shifting (Quarter unchanged)
     const todayTopFinal =
-      rawTodayTop + STACK_SHIFT * 3 + FINE_LAYER_SHIFT * 3 + EXTRA_HIDE_SHIFT;
+      rawTodayTop +
+      STACK_SHIFT * 3 +
+      FINE_LAYER_SHIFT * 3 +
+      EXTRA_HIDE_SHIFT +
+      TODAY_EXTRA_PUSH;
     const weekTopFinal =
-      rawWeekTop + STACK_SHIFT * 2 + FINE_LAYER_SHIFT * 2 + EXTRA_HIDE_SHIFT;
+      rawWeekTop +
+      STACK_SHIFT * 2 +
+      FINE_LAYER_SHIFT * 2 +
+      EXTRA_HIDE_SHIFT +
+      WEEK_EXTRA_PUSH +
+      WEEK_DEEPER_PUSH;
     const monthTopFinal =
-      rawMonthTop + STACK_SHIFT * 1 + FINE_LAYER_SHIFT * 1 + EXTRA_HIDE_SHIFT;
+      rawMonthTop +
+      STACK_SHIFT * 1 +
+      FINE_LAYER_SHIFT * 1 +
+      EXTRA_HIDE_SHIFT +
+      MONTH_EXTRA_PUSH;
     const quarterTopFinal = rawQuarterTop; // unchanged
 
     // Expanded height logic unchanged
