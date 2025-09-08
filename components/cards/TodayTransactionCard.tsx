@@ -104,7 +104,7 @@ export default function TodayTransactionCard({
   };
 
   const showSummary = hasData && !processing && summary;
-  const showDetailsList = false; // never inside card now
+  const showDetailsList = showSummary && isDetailsOpen && summary;
 
   return (
     <TouchableOpacity
@@ -119,11 +119,11 @@ export default function TodayTransactionCard({
         <TouchableOpacity
           style={styles.topRight}
           activeOpacity={0.85}
-          onPress={onOpenDetails}
+          onPress={isDetailsOpen ? onCloseDetails : onOpenDetails}
         >
           <View style={styles.dottedInner}>
             <Ionicons
-              name="expand-outline"
+              name={isDetailsOpen ? "close" : "expand-outline"}
               size={20}
               color="rgba(0,0,0,0.85)"
             />
@@ -142,8 +142,30 @@ export default function TodayTransactionCard({
                   : "Daily snapshot"}
           </Text>
 
-          {false && showDetailsList && (
-            <View style={styles.listBox}>{/* removed inline list */}</View>
+          {showDetailsList && (
+            <View style={styles.listBox}>
+              {summary.top.length === 0 && (
+                <Text style={styles.emptyLine}>No transactions today</Text>
+              )}
+              {summary.top.map((t: any, i: number) => (
+                <View key={i} style={styles.row}>
+                  <Text style={styles.rowLeft} numberOfLines={1}>
+                    {t.description || t.merchant || t.category || "—"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.rowAmt,
+                      (t.type || "").toUpperCase() === "CREDIT"
+                        ? styles.credit
+                        : styles.debit,
+                    ]}
+                  >
+                    {(t.type || "").toUpperCase() === "CREDIT" ? "+" : "-"}₹
+                    {formatAmt(t.amount)}
+                  </Text>
+                </View>
+              ))}
+            </View>
           )}
         </Animated.View>
 
@@ -162,8 +184,10 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#F1784C",
     borderRadius: RADIUS,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     paddingHorizontal: 16,
-    paddingTop: 18,
+    paddingTop: 14, // raise inner content by 4px
     paddingBottom: 18,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },

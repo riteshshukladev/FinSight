@@ -16,7 +16,7 @@ export default function MonthTransactionCard({
 }) {
   const { hasData = false, processing = false } = { ...rest };
   const showSummary = hasData && !processing && summary;
-  const showDetailsList = false;
+  const showDetailsList = showSummary && isDetailsOpen && summary;
   const formatAmt = (a) => {
     const v = Math.abs(parseFloat(String(a)) || 0);
     return v.toLocaleString("en-IN");
@@ -27,11 +27,11 @@ export default function MonthTransactionCard({
         <TouchableOpacity
           style={styles.topRight}
           activeOpacity={0.85}
-          onPress={onOpenDetails}
+          onPress={isDetailsOpen ? onCloseDetails : onOpenDetails}
         >
           <View style={styles.dottedInner}>
             <Ionicons
-              name="expand-outline"
+              name={isDetailsOpen ? "close" : "expand-outline"}
               size={20}
               color="rgba(0,0,0,0.85)"
             />
@@ -47,8 +47,30 @@ export default function MonthTransactionCard({
                 : "Make money, spend Money"}
           </Text>
         </View>
-        {false && showDetailsList && (
-          <View style={styles.listBox}>{/* list removed */}</View>
+        {showDetailsList && (
+          <View style={styles.listBox}>
+            {summary.top.length === 0 && (
+              <Text style={styles.emptyLine}>No monthly transactions</Text>
+            )}
+            {summary.top.map((t, i) => (
+              <View key={i} style={styles.row}>
+                <Text style={styles.rowLeft} numberOfLines={1}>
+                  {t.description || t.merchant || t.category || "—"}
+                </Text>
+                <Text
+                  style={[
+                    styles.rowAmt,
+                    (t.type || "").toUpperCase() === "CREDIT"
+                      ? styles.credit
+                      : styles.debit,
+                  ]}
+                >
+                  {(t.type || "").toUpperCase() === "CREDIT" ? "+" : "-"}₹
+                  {formatAmt(t.amount)}
+                </Text>
+              </View>
+            ))}
+          </View>
         )}
         <View style={styles.rightBlock}>
           <Text className="amount">
@@ -77,10 +99,12 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#4C89D9",
     borderRadius: RADIUS,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     paddingHorizontal: 16,
-    paddingTop: 18,
+    paddingTop: 14, // raise content
     paddingBottom: 18,
-    minHeight: undefined, // override previous
+    minHeight: undefined,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,

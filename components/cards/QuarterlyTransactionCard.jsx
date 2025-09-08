@@ -59,9 +59,9 @@ export default function QuarterlyTransactionCard({
   };
 
   const showSummary = hasData && !isProcessing && summary;
-  const hasWindowData = !!(showSummary && summary.totalCount > 0);
-  const showDetailsList = false;
+  const showDetailsList = showSummary && isDetailsOpen && summary;
 
+  // FORMAT helper (was missing -> caused ReferenceError)
   const formatAmt = (a) => {
     const v = Math.abs(parseFloat(String(a)) || 0);
     return v.toLocaleString("en-IN");
@@ -96,11 +96,11 @@ export default function QuarterlyTransactionCard({
           <TouchableOpacity
             style={styles.topRight}
             activeOpacity={0.85}
-            onPress={onOpenDetails}
+            onPress={isDetailsOpen ? onCloseDetails : onOpenDetails}
           >
             <View style={styles.dottedInner}>
               <Ionicons
-                name="expand-outline"
+                name={isDetailsOpen ? "close" : "expand-outline"}
                 size={20}
                 color="rgba(0,0,0,0.85)"
               />
@@ -115,9 +115,36 @@ export default function QuarterlyTransactionCard({
             </Text>
           </View>
 
-          {/* remove inline list */}
-          {false && showDetailsList && (
-            <View style={styles.listBox}>{/* list removed */}</View>
+          {showDetailsList && (
+            <View style={styles.listBox}>
+              {summary.top.length === 0 && (
+                <Text style={styles.emptyWindowText}>
+                  No transactions in this period
+                </Text>
+              )}
+              {summary.top.map((t, i) => (
+                <View key={i} style={styles.row}>
+                  <Text style={styles.rowLeft} numberOfLines={1}>
+                    {t.description ||
+                      t.merchant ||
+                      t.category ||
+                      t.address ||
+                      "—"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.rowAmt,
+                      (t.type || "").toUpperCase() === "CREDIT"
+                        ? styles.credit
+                        : styles.debit,
+                    ]}
+                  >
+                    {(t.type || "").toUpperCase() === "CREDIT" ? "+" : "-"}₹
+                    {formatAmt(t.amount)}
+                  </Text>
+                </View>
+              ))}
+            </View>
           )}
 
           <View style={styles.rightBlock}>

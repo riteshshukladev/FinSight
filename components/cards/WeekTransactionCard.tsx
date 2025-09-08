@@ -131,7 +131,7 @@ export default function WeekTransactionCard({
   };
 
   const showSummary = hasData && !processing && summary;
-  const showDetailsList = false;
+  const showDetailsList = showSummary && isDetailsOpen && summary;
 
   return (
     <TouchableOpacity
@@ -142,12 +142,12 @@ export default function WeekTransactionCard({
         {/* Collapse / Expand button (top-right) */}
         <TouchableOpacity
           style={styles.topRight}
-          onPress={onOpenDetails}
+          onPress={isDetailsOpen ? onCloseDetails : onOpenDetails}
           activeOpacity={0.85}
         >
           <View style={styles.dottedInner}>
             <Ionicons
-              name="expand-outline"
+              name={isDetailsOpen ? "close" : "expand-outline"}
               size={20}
               color="rgba(0,0,0,0.85)"
             />
@@ -167,9 +167,30 @@ export default function WeekTransactionCard({
           </Text>
         </Reanimated.View>
 
-        {/* Remove inline list */}
-        {false && showDetailsList && (
-          <View style={styles.listBox}>{/* list removed */}</View>
+        {showDetailsList && (
+          <View style={styles.listBox}>
+            {summary.top.length === 0 && (
+              <Text style={styles.emptyLine}>No weekly transactions</Text>
+            )}
+            {summary.top.map((t: any, i: number) => (
+              <View key={i} style={styles.row}>
+                <Text style={styles.rowLeft} numberOfLines={1}>
+                  {t.description || t.merchant || t.category || "—"}
+                </Text>
+                <Text
+                  style={[
+                    styles.rowAmt,
+                    (t.type || "").toUpperCase() === "CREDIT"
+                      ? styles.credit
+                      : styles.debit,
+                  ]}
+                >
+                  {(t.type || "").toUpperCase() === "CREDIT" ? "+" : "-"}₹
+                  {formatAmt(t.amount)}
+                </Text>
+              </View>
+            ))}
+          </View>
         )}
 
         {/* processing logs remain only if not showing details */}
@@ -202,8 +223,10 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#7CBFA9",
     borderRadius: RADIUS,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     paddingHorizontal: 16,
-    paddingTop: 18,
+    paddingTop: 14, // raise content
     paddingBottom: 18,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
