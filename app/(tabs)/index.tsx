@@ -3,9 +3,12 @@ import {
   StyleSheet,
   View,
   StatusBar,
-  LayoutAnimation,
   UIManager,
   Platform,
+  LayoutAnimation,
+  Pressable,
+  ScrollView,
+  Text,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SplashScreen from "expo-splash-screen";
@@ -23,28 +26,31 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  Easing,
   interpolate,
-  Extrapolate,
+  Easing,
+  useDerivedValue,
+  withDelay,
 } from "react-native-reanimated";
 
 import QuarterlyTransactionCard from "../../components/cards/QuarterlyTransactionCard";
 import MonthTransactionCard from "../../components/cards/MonthTransactionCard";
 import WeekTransactionCard from "../../components/cards/WeekTransactionCard";
 import TodayTransactionCard from "../../components/cards/TodayTransactionCard";
+import { useSMSDataContext } from "../../hooks/SMSDataContext";
+import { useTransactionWindows } from "@/hooks/useTransactionWindow";
+import { TouchableOpacity } from "react-native-gesture-handler";
+import { Ionicons } from "@expo/vector-icons";
 
 SplashScreen.preventAutoHideAsync();
 
-// shared collapsed heights
-const CARD_HEIGHT = 180;
+type DetailCard = "today" | "week" | "month" | "quarter" | null;
 
-// ladder offsets
-const QUARTER_OFFSET = 0;
-const MONTH_OFFSET = 20;
-const WEEK_OFFSET = MONTH_OFFSET + 20; // 40
-const TODAY_OFFSET = WEEK_OFFSET + 20; // 60
-
-type OpenCard = "today" | "week" | "month" | null;
+const CARD_HEIGHT = 200;
+const CARD_GAP = 0;
+const TODAY_TOP_FINAL = 0;
+const WEEK_TOP_FINAL = TODAY_TOP_FINAL + CARD_HEIGHT + CARD_GAP;
+const MONTH_TOP_FINAL = WEEK_TOP_FINAL + CARD_HEIGHT + CARD_GAP;
+const QUARTER_TOP_FINAL = MONTH_TOP_FINAL + CARD_HEIGHT + CARD_GAP;
 
 export default function Deck() {
   const [fontsLoaded] = useFonts({
@@ -56,199 +62,330 @@ export default function Deck() {
   });
   const tabBarHeight = useBottomTabBarHeight();
 
-  const [openCard, setOpenCard] = useState<OpenCard>(null);
+  const smsData = useSMSDataContext();
+  const bankMessages = smsData?.bankMessages || [];
+  const upiMessages = smsData?.upiMessages || [];
+  const processing = smsData?.processing;
+  const merged = [...bankMessages, ...upiMessages];
+  const hasData = !processing && merged.length > 0;
+  const windows = useTransactionWindows(merged);
 
-  // dynamic height growth for Today card measurement
-  const [todayHeight, setTodayHeight] = useState<number>(260);
-  const onTodayHeight = (h: number) => setTodayHeight(h);
+  const [detailCard, setDetailCard] = useState<DetailCard>(null);
 
-  // WEEK measured height (for stage sizing)  <<< ADD
-  const [weekHeight, setWeekHeight] = useState<number>(CARD_HEIGHT);
-  const onWeekHeight = (h: number) => setWeekHeight(h);
-  // <<< END ADD
+  // shared values (top offsets)
+  const tTop = useSharedValue(0);
+  const wTop = useSharedValue(0);
+  const mTop = useSharedValue(0);
+  const qTop = useSharedValue(0);
 
-  // extra animated vertical growth trigger after processing starts
-  const [heightBoost, setHeightBoost] = useState(0);
+  // Animate into stacked positions when data becomes available
+  useEffect(() => {
+    if (hasData) {
+      const cfg = { damping: 18, stiffness: 180, mass: 0.9 };
+      tTop.value = withSpring(TODAY_TOP_FINAL, cfg);
+      wTop.value = withSpring(WEEK_TOP_FINAL, cfg);
+      mTop.value = withSpring(MONTH_TOP_FINAL, cfg);
+      qTop.value = withSpring(QUARTER_TOP_FINAL, cfg);
+    } else {
+      // collapse all to top 0 during processing / initial
+      tTop.value = 0;
+      wTop.value = 0;
+      mTop.value = 0;
+      qTop.value = 0;
+    }
+  }, [hasData]);
 
-  // enable LayoutAnimation on Android
+  // Animated styles (top-based)
+  const animToday = useAnimatedStyle(() => ({
+    top: tTop.value,
+    height: CARD_HEIGHT,
+    zIndex: 4,
+    left: 0,
+    right: 0,
+  }));
+  const animWeek = useAnimatedStyle(() => ({
+    top: wTop.value,
+    height: CARD_HEIGHT,
+    zIndex: 3,
+    left: 0,
+    right: 0,
+  }));
+  const animMonth = useAnimatedStyle(() => ({
+    top: mTop.value,
+    height: CARD_HEIGHT,
+    zIndex: 2,
+    left: 0,
+    right: 0,
+  }));
+  const animQuarter = useAnimatedStyle(() => ({
+    top: qTop.value,
+    height: CARD_HEIGHT,
+    zIndex: 1,
+    left: 0,
+    right: 0,
+  }));
+
+  // Stage height must fit lowest card (quarterly) + its height
+  const STAGE_HEIGHT = hasData ? QUARTER_TOP_FINAL + CARD_HEIGHT + 24 : 640;
+
   useEffect(() => {
     if (
       Platform.OS === "android" &&
-      UIManager.setLayoutAnimationEnabledExperimental
+      (UIManager as any).setLayoutAnimationEnabledExperimental
     ) {
-      UIManager.setLayoutAnimationEnabledExperimental(true);
+      (UIManager as any).setLayoutAnimationEnabledExperimental(true);
     }
   }, []);
-
-  // NEW
-  const [showWeek, setShowWeek] = useState(false); // NEW
-  // (Month intentionally hidden per requirement)
-
-  // appearance animation for week card
-  const weekAppear = useSharedValue(0); // 0 = hidden, 1 = shown
-
-  const triggerHeightBoost = () => {
-    if (heightBoost === 0) {
-      if (!showWeek) {
-        setShowWeek(true);
-        weekAppear.value = 0;
-        // smoother eased timing instead of stiff spring
-        weekAppear.value = withTiming(1, {
-          duration: 620,
-          easing: Easing.out(Easing.exp),
-        });
-      }
-      // gentler layout transition
-      LayoutAnimation.configureNext({
-        duration: 600,
-        create: { type: "easeInEaseOut", property: "opacity" },
-        update: {
-          type: "spring",
-          springDamping: 0.75, // smoother (0.0 - 1.0)
-        },
-        delete: { type: "easeInEaseOut", property: "opacity" },
-      });
-      setHeightBoost(200);
-    }
-  };
-
-  // animated bottom offsets (month removed)
-  const weekBottom = useSharedValue(WEEK_OFFSET);
-  const todayBottom = useSharedValue(TODAY_OFFSET);
-
-  useEffect(() => {
-    // only animate week if visible
-    if (showWeek) {
-      weekBottom.value = withSpring(openCard === "week" ? 0 : WEEK_OFFSET, {
-        damping: 16,
-        stiffness: 140,
-      });
-    }
-    todayBottom.value = withSpring(openCard === "today" ? 0 : TODAY_OFFSET, {
-      damping: 16,
-      stiffness: 140,
-    });
-  }, [openCard, showWeek]);
-
-  const weekSlotStyle = useAnimatedStyle(() => {
-    // smoother travel + subtle scale & fade curve
-    const progress = weekAppear.value;
-    const translateY = interpolate(
-      progress,
-      [0, 1],
-      [140, 0],
-      Extrapolate.CLAMP
-    );
-    const opacity = interpolate(progress, [0, 1], [0, 1]);
-    const scale = interpolate(progress, [0, 1], [0.9, 1], Extrapolate.CLAMP);
-    return {
-      bottom: weekBottom.value,
-      transform: [{ translateY }, { scale }],
-      opacity,
-    };
-  });
-
-  const todaySlotStyle = useAnimatedStyle(() => {
-    // slight soften when heightBoost animates (optional subtle scale)
-    return {
-      bottom: todayBottom.value,
-      transform: [
-        {
-          scale: withSpring(1, {
-            damping: 18,
-            stiffness: 140,
-          }),
-        },
-      ],
-    };
-  });
-
-  // stage height (exclude month)
-  const STAGE_HEIGHT = Math.max(
-    QUARTER_OFFSET + CARD_HEIGHT,
-    showWeek ? WEEK_OFFSET + weekHeight : 0, // use measured week height
-    TODAY_OFFSET + todayHeight
-  );
-
-  // z-index ordering (month removed)
-  const zToday = openCard === "today" ? 10 : 1;
-  const zWeek = openCard === "week" ? 10 : 2;
-  const zQuart = openCard ? 4 : 5;
 
   useEffect(() => {
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
   if (!fontsLoaded) return null;
 
-  // lift above tab bar
-  const EXTRA_RAISE = 12;
-  const bottomPad = tabBarHeight + EXTRA_RAISE;
+  const bottomPad = tabBarHeight + 12;
+
+  const summaries: Record<string, any> = {
+    today: windows.today,
+    week: windows.week,
+    month: windows.month,
+    quarter: windows.twoMonths,
+  };
+
+  const DetailOverlay = () => {
+    if (!detailCard) return null;
+    const summary = summaries[detailCard];
+    const list = summary?.top || [];
+    return (
+      <Animated.View
+        style={{
+          ...StyleSheet.absoluteFillObject,
+          zIndex: 50,
+          backgroundColor: "rgba(0,0,0,0.55)",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => setDetailCard(null)}
+        />
+        <View
+          style={{
+            width: "90%",
+            maxHeight: "70%",
+            backgroundColor: "#181818",
+            borderRadius: 28,
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              position: "absolute",
+              right: 12,
+              top: 12,
+              zIndex: 10,
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => setDetailCard(null)}
+              activeOpacity={0.85}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                backgroundColor: "rgba(255,255,255,0.15)",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons name="close" size={22} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+          <Text
+            style={{
+              fontFamily: "Lexend_600SemiBold",
+              fontSize: 24,
+              color: "#FFF",
+              marginRight: 46,
+            }}
+          >
+            {detailCard === "quarter"
+              ? "Quarterly Transactions"
+              : detailCard === "month"
+                ? "Month’s Transactions"
+                : detailCard === "week"
+                  ? "Week’s Transactions"
+                  : "Today’s Activity"}
+          </Text>
+          <Text
+            style={{
+              marginTop: 6,
+              fontFamily: "Lexend_400Regular",
+              fontSize: 14,
+              color: "rgba(255,255,255,0.85)",
+            }}
+          >
+            {summary
+              ? `${summary.totalCount} tx | ₹${summary.totalCredit} in / ₹${summary.totalDebit} out`
+              : "No data"}
+          </Text>
+
+          <ScrollView
+            style={{ marginTop: 16 }}
+            contentContainerStyle={{ paddingBottom: 8, gap: 8 }}
+          >
+            {(!summary || summary.top.length === 0) && (
+              <Text
+                style={{
+                  fontFamily: "Lexend_400Regular",
+                  fontSize: 14,
+                  color: "rgba(255,255,255,0.7)",
+                  textAlign: "center",
+                  marginTop: 12,
+                }}
+              >
+                No transactions in this period
+              </Text>
+            )}
+            {list.map((t: any, i: number) => (
+              <View
+                key={i}
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                  borderRadius: 14,
+                  padding: 12,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    flex: 1,
+                    fontFamily: "Lexend_400Regular",
+                    fontSize: 12,
+                    color: "#FFF",
+                    marginRight: 10,
+                  }}
+                  numberOfLines={1}
+                >
+                  {t.description || t.merchant || t.category || "—"}
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: "Lexend_600SemiBold",
+                    fontSize: 12,
+                    color:
+                      (t.type || "").toUpperCase() === "CREDIT"
+                        ? "#68F5A4"
+                        : "#FFB4B4",
+                  }}
+                >
+                  {(t.type || "").toUpperCase() === "CREDIT" ? "+" : "-"}₹
+                  {Math.abs(parseFloat(String(t.amount)) || 0).toLocaleString(
+                    "en-IN"
+                  )}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </Animated.View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar barStyle="light-content" />
       <View style={[styles.bottomWrap, { paddingBottom: bottomPad }]}>
         <View style={[styles.stage, { height: STAGE_HEIGHT }]}>
-          {/* TODAY (always visible) */}
-          <Animated.View
-            style={[styles.absSlot, todaySlotStyle, { zIndex: zToday }]}
-          >
-            <TodayTransactionCard
-              isExpanded={true} // kept for interface; unused internally
-              onExpand={() => {}}
-              onCollapse={() => {}}
-              onHeightChange={onTodayHeight}
-              extraHeight={heightBoost}
-              collapsedHeight={CARD_HEIGHT + 40} // 220 (week collapsed +20)
-            />
-          </Animated.View>
-
-          {/* WEEK (appears only after processing start) */}
-          {showWeek && (
-            <Animated.View
-              style={[styles.absSlot, weekSlotStyle, { zIndex: zWeek }]}
-            >
-              <WeekTransactionCard
-                isExpanded={true}
-                onExpand={() => {}}
-                onCollapse={() => {}}
-                extraHeight={heightBoost}
-                showLogs={heightBoost > 0}
-                referenceHeight={todayHeight}
-                onHeightChange={onWeekHeight} // NEW
-                collapsedHeight={CARD_HEIGHT + 20} // 200
+          {hasData ? (
+            <>
+              <Animated.View style={[styles.absSlot, animToday]}>
+                <TodayTransactionCard
+                  summary={windows.today}
+                  hasData
+                  processing={!!processing}
+                  fixedHeight={CARD_HEIGHT}
+                  isDetailsOpen={false}
+                  onOpenDetails={() => setDetailCard("today")}
+                  onCloseDetails={() => setDetailCard(null)}
+                  isExpanded
+                  onExpand={() => {}}
+                  onCollapse={() => {}}
+                />
+              </Animated.View>
+              <Animated.View style={[styles.absSlot, animWeek]}>
+                <WeekTransactionCard
+                  summary={windows.week}
+                  hasData
+                  processing={!!processing}
+                  fixedHeight={CARD_HEIGHT}
+                  isDetailsOpen={false}
+                  onOpenDetails={() => setDetailCard("week")}
+                  onCloseDetails={() => setDetailCard(null)}
+                  isExpanded
+                  onExpand={() => {}}
+                  onCollapse={() => {}}
+                  showLogs={false}
+                />
+              </Animated.View>
+              <Animated.View style={[styles.absSlot, animMonth]}>
+                <MonthTransactionCard
+                  summary={windows.month}
+                  hasData
+                  processing={!!processing}
+                  fixedHeight={CARD_HEIGHT}
+                  isDetailsOpen={false}
+                  onOpenDetails={() => setDetailCard("month")}
+                  onCloseDetails={() => setDetailCard(null)}
+                  isExpanded
+                  onExpand={() => {}}
+                  onCollapse={() => {}}
+                />
+              </Animated.View>
+              <Animated.View style={[styles.absSlot, animQuarter]}>
+                <QuarterlyTransactionCard
+                  summary={windows.twoMonths}
+                  hasData
+                  processing={!!processing}
+                  fixedHeight={CARD_HEIGHT}
+                  isDetailsOpen={false}
+                  onOpenDetails={() => setDetailCard("quarter")}
+                  onCloseDetails={() => setDetailCard(null)}
+                />
+              </Animated.View>
+            </>
+          ) : (
+            <Animated.View style={[styles.absSlot, { top: 0 }]}>
+              <QuarterlyTransactionCard
+                summary={windows.twoMonths}
+                hasData={false}
+                processing={!!processing}
+                fixedHeight={CARD_HEIGHT}
+                isDetailsOpen={false}
               />
             </Animated.View>
           )}
-
-          {/* QUARTERLY */}
-          <View
-            style={[styles.absSlot, { bottom: QUARTER_OFFSET, zIndex: zQuart }]}
-          >
-            <QuarterlyTransactionCard onStartProcessing={triggerHeightBoost} />
-          </View>
         </View>
       </View>
+      <DetailOverlay />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0F0F0F" },
-  header: { paddingHorizontal: 20, paddingVertical: 14 },
-  h1: { color: "#ECECEC", fontSize: 22, fontFamily: "Lexend_600SemiBold" },
-  h2: {
-    color: "#9CA3AF",
-    fontSize: 13,
-    marginTop: 4,
-    fontFamily: "Lexend_400Regular",
-  },
   bottomWrap: {
     flex: 1,
-    justifyContent: "flex-end",
+    justifyContent: "flex-start",
     paddingHorizontal: 16,
     overflow: "visible",
   },
-  stage: { position: "relative", overflow: "visible" },
-  absSlot: { position: "absolute", left: 0, right: 0 },
+  stage: { position: "relative", overflow: "visible", width: "100%" },
+  absSlot: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+  },
 });

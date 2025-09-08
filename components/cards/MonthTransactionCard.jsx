@@ -1,49 +1,70 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeIn } from "react-native-reanimated";
 
 export default function MonthTransactionCard({
   isExpanded,
   onExpand,
   onCollapse,
+  summary,
+  fixedHeight,
+  isDetailsOpen = false, // NEW
+  onOpenDetails,
+  onCloseDetails,
+  ...rest
 }) {
+  const { hasData = false, processing = false } = { ...rest };
+  const showSummary = hasData && !processing && summary;
+  const showDetailsList = false;
+  const formatAmt = (a) => {
+    const v = Math.abs(parseFloat(String(a)) || 0);
+    return v.toLocaleString("en-IN");
+  };
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={!isExpanded ? onExpand : undefined}
-    >
-      <View style={styles.card}>
+    <TouchableOpacity activeOpacity={0.9} onPress={() => {}}>
+      <View style={[styles.card, fixedHeight && { height: fixedHeight }]}>
         <TouchableOpacity
           style={styles.topRight}
-          onPress={isExpanded ? onCollapse : onExpand}
-          activeOpacity={0.9}
+          activeOpacity={0.85}
+          onPress={onOpenDetails}
         >
-          {isExpanded ? (
-            <View style={styles.closeBtn}>
-              <Ionicons name="close" size={18} color="#fff" />
-            </View>
-          ) : (
-            <>
-              <View style={styles.dottedOuter} />
-              <View style={styles.dottedInner}>
-                <Ionicons
-                  name="open-outline"
-                  size={18}
-                  color="rgba(0,0,0,0.85)"
-                />
-              </View>
-            </>
-          )}
+          <View style={styles.dottedInner}>
+            <Ionicons
+              name="expand-outline"
+              size={20}
+              color="rgba(0,0,0,0.85)"
+            />
+          </View>
         </TouchableOpacity>
-
         <View>
           <Text style={styles.title}>Month’s Transactions</Text>
-          <Text style={styles.subtitle}>Make money, spend Money</Text>
+          <Text style={styles.subtitle}>
+            {showSummary
+              ? `${summary.totalCount} tx | ₹${summary.totalCredit} in / ₹${summary.totalDebit} out`
+              : processing
+                ? "Processing monthly data..."
+                : "Make money, spend Money"}
+          </Text>
         </View>
-
+        {false && showDetailsList && (
+          <View style={styles.listBox}>{/* list removed */}</View>
+        )}
         <View style={styles.rightBlock}>
-          <Text style={styles.amount}>32</Text>
-          <Text style={styles.date}>22/06/25</Text>
+          <Text className="amount">
+            ₹
+            {showSummary
+              ? (summary.totalCredit - summary.totalDebit).toLocaleString(
+                  "en-IN"
+                )
+              : "0"}
+          </Text>
+          <Text style={styles.date}>
+            {new Date().toLocaleDateString("en-IN", {
+              month: "short",
+              year: "numeric",
+            })}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -54,17 +75,18 @@ const RADIUS = 28;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#4B89A4", // blue
+    backgroundColor: "#4C89D9",
     borderRadius: RADIUS,
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 18,
-    minHeight: 180, // same as quarterly
+    minHeight: undefined, // override previous
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
     shadowRadius: 12,
     elevation: 8,
+    overflow: "hidden",
   },
   title: {
     fontFamily: "Lexend_600SemiBold",
@@ -124,5 +146,35 @@ const styles = StyleSheet.create({
     fontFamily: "Lexend_400Regular",
     fontSize: 13,
     color: "rgba(255,255,255,0.85)",
+  },
+  listBox: {
+    marginTop: 14,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 14,
+    padding: 10,
+    gap: 6,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  rowLeft: {
+    flex: 1,
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "#FFF",
+    marginRight: 8,
+  },
+  rowAmt: {
+    fontFamily: "Lexend_600SemiBold",
+    fontSize: 12,
+  },
+  credit: { color: "#68F5A4" },
+  debit: { color: "#FFB4B4" },
+  emptyLine: {
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.7)",
   },
 });

@@ -9,26 +9,31 @@ import {
 } from "react-native";
 import { useSMSDataContext } from "../../hooks/SMSDataContext";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import Animated, { FadeIn } from "react-native-reanimated";
+import { Ionicons } from "@expo/vector-icons";
 
-export default function QuarterlyTransactionCard({ onStartProcessing }) {
+export default function QuarterlyTransactionCard({
+  onStartProcessing,
+  summary,
+  hasData = false,
+  processing = false,
+  fixedHeight,
+  isDetailsOpen = false,
+  onOpenDetails,
+  onCloseDetails,
+}) {
   const smsData = useSMSDataContext();
-
-  // Existing context values
-  const processing = smsData?.processing;
+  const ctxProcessing = smsData?.processing;
   const forceRefresh = smsData?.forceRefresh;
+  const isProcessing = processing || ctxProcessing;
 
-  // Newly expected context values (defensive fallback if not yet implemented)
+  // keep cutoff only for pre‑data state
   const processingCutoff = smsData?.processingCutoff || null;
-  const setProcessingCutoff =
-    smsData?.setProcessingCutoff ||
-    (() => {
-      /* no-op until implemented */
-    });
-
+  const setProcessingCutoff = smsData?.setProcessingCutoff || (() => {});
   const [showPicker, setShowPicker] = useState(false);
 
   const onProcess = () => {
-    if (processing) return; 
+    if (isProcessing) return;
     Alert.alert(
       "Clear & Process",
       "This will clear cached data and reprocess SMS data. Continue?",
@@ -38,7 +43,7 @@ export default function QuarterlyTransactionCard({ onStartProcessing }) {
           text: "Yes",
           onPress: async () => {
             try {
-              onStartProcessing?.(); // trigger UI animation immediately
+              onStartProcessing?.();
               if (forceRefresh) {
                 await forceRefresh();
               } else {
@@ -53,68 +58,125 @@ export default function QuarterlyTransactionCard({ onStartProcessing }) {
     );
   };
 
-  const cutoffLabel = processingCutoff
-    ? processingCutoff.toLocaleDateString()
-    : "All time";
+  const showSummary = hasData && !isProcessing && summary;
+  const hasWindowData = !!(showSummary && summary.totalCount > 0);
+  const showDetailsList = false;
+
+  const formatAmt = (a) => {
+    const v = Math.abs(parseFloat(String(a)) || 0);
+    return v.toLocaleString("en-IN");
+  };
 
   return (
-    <View style={styles.card}>
-      <View style={styles.topRow}>
-        <View style={styles.copyCol}>
-          <Text style={styles.beginTitle}>Let’s Begin!!</Text>
-          <Text style={styles.beginSub}>Start managing your finances</Text>
-        </View>
-
-        <TouchableOpacity
-          onPress={onProcess}
-          disabled={processing}
-          activeOpacity={0.85}
-          style={[styles.ctaBtn, processing && { opacity: 0.55 }]}
-        >
-          <Text style={styles.ctaText}>
-            {processing ? "processing..." : "process"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Cutoff Date Selector (only if setter exists) */}
-      {setProcessingCutoff !== null && (
-        <View style={styles.cutoffRow}>
-          <Text style={styles.cutoffLabel}>Since:</Text>
+    <View style={[styles.card, fixedHeight && { height: fixedHeight }]}>
+      {/* PRE-DATA / INITIAL STATE (unchanged) */}
+      {!showSummary && (
+        <View style={styles.topRow}>
+          <View style={styles.copyCol}>
+            <Text style={styles.beginTitle}>Let’s Begin!!</Text>
+            <Text style={styles.beginSub}>Start managing your finances</Text>
+          </View>
           <TouchableOpacity
-            style={styles.cutoffBtn}
-            onPress={() => setShowPicker(true)}
+            onPress={onProcess}
+            disabled={isProcessing}
             activeOpacity={0.85}
-            disabled={processing}
+            style={[styles.ctaBtn, isProcessing && { opacity: 0.55 }]}
           >
-            <Text style={styles.cutoffBtnText}>{cutoffLabel}</Text>
+            <Text style={styles.ctaText}>
+              {isProcessing ? "processing..." : "process"}
+            </Text>
           </TouchableOpacity>
-          {processingCutoff && (
-            <TouchableOpacity
-              onPress={() => setProcessingCutoff(null)}
-              style={styles.clearBtn}
-              disabled={processing}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.clearBtnText}>×</Text>
-            </TouchableOpacity>
-          )}
         </View>
       )}
 
-      {showPicker && (
-        <DateTimePicker
-          mode="date"
-          value={
-            processingCutoff || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-          }
-          maximumDate={new Date()}
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={(e, date) => {
-            setShowPicker(false);
-            if (date) setProcessingCutoff(date);
-          }}
-        />
+      {/* SUMMARY MODE (NOW MATCHES OTHER CARDS) */}
+      {showSummary && (
+        <>
+          {/* summary mode button */}
+          <TouchableOpacity
+            style={styles.topRight}
+            activeOpacity={0.85}
+            onPress={onOpenDetails}
+          >
+            <View style={styles.dottedInner}>
+              <Ionicons
+                name="expand-outline"
+                size={20}
+                color="rgba(0,0,0,0.85)"
+              />
+            </View>
+          </TouchableOpacity>
+
+          <View>
+            <Text style={styles.summaryTitle}>Quarterly Transactions</Text>
+            <Text style={styles.summarySubtitle}>
+              {summary.totalCount} tx | ₹{summary.totalCredit} in / ₹
+              {summary.totalDebit} out
+            </Text>
+          </View>
+
+          {/* remove inline list */}
+          {false && showDetailsList && (
+            <View style={styles.listBox}>{/* list removed */}</View>
+          )}
+
+          <View style={styles.rightBlock}>
+            <Text style={styles.amount}>{summary.totalCount}</Text>
+            <Text style={styles.date}>
+              {new Date().toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "2-digit",
+              })}
+            </Text>
+          </View>
+        </>
+      )}
+
+      {/* REMOVE cutoff / reprocess UI when data is available */}
+      {!showSummary && (
+        <>
+          <View style={[styles.cutoffRow]}>
+            <Text style={styles.cutoffLabel}>Since:</Text>
+            <TouchableOpacity
+              style={styles.cutoffBtn}
+              onPress={() => setShowPicker(true)}
+              activeOpacity={0.85}
+              disabled={isProcessing}
+            >
+              <Text style={styles.cutoffBtnText}>
+                {processingCutoff
+                  ? processingCutoff.toLocaleDateString()
+                  : "All time"}
+              </Text>
+            </TouchableOpacity>
+            {processingCutoff && (
+              <TouchableOpacity
+                onPress={() => setProcessingCutoff(null)}
+                style={styles.clearBtn}
+                disabled={isProcessing}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.clearBtnText}>×</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {showPicker && (
+            <DateTimePicker
+              mode="date"
+              value={
+                processingCutoff ||
+                new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+              }
+              maximumDate={new Date()}
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={(e, date) => {
+                setShowPicker(false);
+                if (date) setProcessingCutoff(date);
+              }}
+            />
+          )}
+        </>
       )}
     </View>
   );
@@ -129,12 +191,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 18,
-    minHeight: 200,
+    minHeight: undefined,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
     shadowRadius: 12,
     elevation: 8,
+    overflow: "hidden",
   },
   topRow: {
     flexDirection: "column",
@@ -213,5 +276,90 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#FFF",
     lineHeight: 20,
+  },
+  summaryHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 14,
+  },
+  summaryTitle: {
+    fontFamily: "Lexend_700Bold",
+    fontSize: 20,
+    color: "#FFF",
+    lineHeight: 26,
+  },
+  summarySubtitle: {
+    marginTop: 4,
+    fontFamily: "Lexend_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.85)",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    marginTop: 14,
+    marginBottom: 10,
+  },
+  listBox: {
+    marginTop: 4,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 14,
+    padding: 10,
+    gap: 6,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  rowLeft: {
+    flex: 1,
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "#FFF",
+    marginRight: 8,
+  },
+  rowAmt: {
+    fontFamily: "Lexend_600SemiBold",
+    fontSize: 12,
+  },
+  credit: { color: "#68F5A4" },
+  debit: { color: "#FFB4B4" },
+  emptyWindowText: {
+    fontFamily: "Lexend_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
+    marginTop: 4,
+  },
+  topRight: {
+    position: "absolute",
+    right: 12,
+    top: 6,
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  dottedInner: {
+    width: 28,
+    height: 28,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rightBlock: {
+    position: "absolute",
+    right: 16,
+    bottom: 16,
+    alignItems: "flex-end",
+  },
+  amount: { fontFamily: "Lexend_700Bold", fontSize: 28, color: "#F6F6F6" },
+  date: {
+    marginTop: 6,
+    fontFamily: "Lexend_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.85)",
   },
 });

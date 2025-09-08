@@ -54,9 +54,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Stats",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="analytics" size={24} color={color} />
-          ),
+          tabBarIcon: () => null,
         }}
       />
       <Tabs.Screen
@@ -64,9 +62,7 @@ export default function TabLayout() {
         options={{
           title: "Messages",
 
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="message" size={24} color={color} />
-          ),
+          tabBarIcon: () => null,
         }}
       />
     </Tabs>

@@ -15,7 +15,16 @@ import Reanimated, {
   withTiming,
   Easing,
   interpolate,
+  FadeIn,
 } from "react-native-reanimated";
+
+interface WindowSummary {
+  totalCount: number;
+  totalCredit: number;
+  totalDebit: number;
+  net: number;
+  top: any[];
+}
 
 interface Props {
   isExpanded: boolean;
@@ -26,6 +35,13 @@ interface Props {
   referenceHeight?: number;
   onHeightChange?: (h: number) => void;
   collapsedHeight?: number;
+  summary?: WindowSummary;
+  hasData?: boolean; // NEW
+  processing?: boolean; // NEW
+  fixedHeight?: number; // NEW
+  isDetailsOpen?: boolean;
+  onOpenDetails?: () => void;
+  onCloseDetails?: () => void;
 }
 
 export default function WeekTransactionCard({
@@ -37,6 +53,13 @@ export default function WeekTransactionCard({
   referenceHeight,
   onHeightChange,
   collapsedHeight = 200,
+  summary,
+  hasData = false,
+  processing = false,
+  fixedHeight,
+  isDetailsOpen = false,
+  onOpenDetails,
+  onCloseDetails,
 }: Props) {
   const smsData = useSMSDataContext();
   const logs: string[] = (
@@ -87,7 +110,7 @@ export default function WeekTransactionCard({
   };
 
   const cardAnimStyle = useAnimatedStyle(() => ({
-    height: heightSV.value,
+    height: fixedHeight ?? heightSV.value,
   }));
 
   const headerAnim = useAnimatedStyle(() => {
@@ -102,6 +125,14 @@ export default function WeekTransactionCard({
     return { opacity, transform: [{ translateY }] };
   });
 
+  const formatAmt = (a: any) => {
+    const v = Math.abs(parseFloat(String(a)) || 0);
+    return v.toLocaleString("en-IN");
+  };
+
+  const showSummary = hasData && !processing && summary;
+  const showDetailsList = false;
+
   return (
     <TouchableOpacity
       activeOpacity={0.9}
@@ -111,12 +142,12 @@ export default function WeekTransactionCard({
         {/* Collapse / Expand button (top-right) */}
         <TouchableOpacity
           style={styles.topRight}
-          onPress={toggle}
+          onPress={onOpenDetails}
           activeOpacity={0.85}
         >
           <View style={styles.dottedInner}>
             <Ionicons
-              name={isCollapsed ? "chevron-up" : "chevron-down"}
+              name="expand-outline"
               size={20}
               color="rgba(0,0,0,0.85)"
             />
@@ -126,11 +157,23 @@ export default function WeekTransactionCard({
         <Reanimated.View style={headerAnim}>
           <Text style={styles.title}>Week’s Transactions</Text>
           <Text style={styles.subtitle}>
-            {isCollapsed ? "Collapsed preview" : "Make money, spend Money"}
+            {isCollapsed
+              ? "Collapsed preview"
+              : showSummary
+                ? `${summary.totalCount} tx | ₹${summary.totalCredit} in / ₹${summary.totalDebit} out`
+                : processing
+                  ? "Processing weekly data..."
+                  : "Make money, spend Money"}
           </Text>
         </Reanimated.View>
 
-        {!isCollapsed && showLogs && (
+        {/* Remove inline list */}
+        {false && showDetailsList && (
+          <View style={styles.listBox}>{/* list removed */}</View>
+        )}
+
+        {/* processing logs remain only if not showing details */}
+        {!isCollapsed && showLogs && processing && !showDetailsList && (
           <Reanimated.View style={[styles.logsBox, logsWrapperAnim]}>
             <Text style={styles.logsTitle}>Processing…</Text>
             {logs.length === 0 && (
@@ -162,7 +205,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 18,
-    // minHeight removed for animated collapse
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
@@ -229,5 +271,35 @@ const styles = StyleSheet.create({
     fontFamily: "Lexend_400Regular",
     fontSize: 13,
     color: "rgba(255,255,255,0.85)",
+  },
+  listBox: {
+    marginTop: 14,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 14,
+    padding: 10,
+    gap: 6,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  rowLeft: {
+    flex: 1,
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "#FFF",
+    marginRight: 8,
+  },
+  rowAmt: {
+    fontFamily: "Lexend_600SemiBold",
+    fontSize: 12,
+  },
+  credit: { color: "#68F5A4" },
+  debit: { color: "#FFB4B4" },
+  emptyLine: {
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.7)",
   },
 });

@@ -15,6 +15,14 @@ import Animated, {
   interpolate,
 } from "react-native-reanimated";
 
+type WindowSummary = {
+  totalCount: number;
+  totalCredit: number;
+  totalDebit: number;
+  net: number;
+  top: any[];
+};
+
 type Props = {
   isExpanded: boolean;
   onExpand: () => void;
@@ -22,6 +30,13 @@ type Props = {
   onHeightChange?: (h: number) => void;
   extraHeight?: number;
   collapsedHeight?: number;
+  summary?: WindowSummary;
+  hasData?: boolean; // NEW
+  processing?: boolean; // NEW
+  fixedHeight?: number; // NEW
+  isDetailsOpen?: boolean; // NEW
+  onOpenDetails?: () => void; // NEW
+  onCloseDetails?: () => void; // NEW
 };
 
 export default function TodayTransactionCard({
@@ -31,6 +46,13 @@ export default function TodayTransactionCard({
   onHeightChange,
   extraHeight = 0,
   collapsedHeight = 220,
+  summary,
+  hasData = false,
+  processing = false,
+  fixedHeight,
+  isDetailsOpen = false,
+  onOpenDetails,
+  onCloseDetails,
 }: Props) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -64,7 +86,7 @@ export default function TodayTransactionCard({
   };
 
   const cardAnimStyle = useAnimatedStyle(() => ({
-    height: heightSV.value,
+    height: fixedHeight ?? heightSV.value, // honor fixedHeight if provided
   }));
 
   const contentAnim = useAnimatedStyle(() => {
@@ -76,6 +98,14 @@ export default function TodayTransactionCard({
     };
   });
 
+  const formatAmt = (a: any) => {
+    const v = Math.abs(parseFloat(String(a)) || 0);
+    return v.toLocaleString("en-IN");
+  };
+
+  const showSummary = hasData && !processing && summary;
+  const showDetailsList = false; // never inside card now
+
   return (
     <TouchableOpacity
       activeOpacity={0.9}
@@ -85,14 +115,15 @@ export default function TodayTransactionCard({
         style={[styles.card, cardAnimStyle]}
         onLayout={handleLayout}
       >
+        {/* OPTIONAL: hide expand icon when fixed height */}
         <TouchableOpacity
           style={styles.topRight}
-          onPress={toggle}
           activeOpacity={0.85}
+          onPress={onOpenDetails}
         >
           <View style={styles.dottedInner}>
             <Ionicons
-              name={isCollapsed ? "chevron-up" : "chevron-down"}
+              name="expand-outline"
               size={20}
               color="rgba(0,0,0,0.85)"
             />
@@ -102,8 +133,18 @@ export default function TodayTransactionCard({
         <Animated.View style={contentAnim}>
           <Text style={styles.title}>Today’s Activity</Text>
           <Text style={styles.subtitle}>
-            {isCollapsed ? "Collapsed preview" : "Daily snapshot"}
+            {isCollapsed
+              ? "Collapsed preview"
+              : showSummary
+                ? `${summary.totalCount} tx | ₹${summary.totalCredit} in / ₹${summary.totalDebit} out`
+                : processing
+                  ? "Processing today’s transactions..."
+                  : "Daily snapshot"}
           </Text>
+
+          {false && showDetailsList && (
+            <View style={styles.listBox}>{/* removed inline list */}</View>
+          )}
         </Animated.View>
 
         <View style={styles.rightBlock}>
@@ -119,12 +160,11 @@ const RADIUS = 28;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#4C89D9",
+    backgroundColor: "#F1784C",
     borderRadius: RADIUS,
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 18,
-    // minHeight removed to allow collapse animation
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
@@ -174,5 +214,35 @@ const styles = StyleSheet.create({
     fontFamily: "Lexend_400Regular",
     fontSize: 13,
     color: "rgba(255,255,255,0.85)",
+  },
+  listBox: {
+    marginTop: 14,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 14,
+    padding: 10,
+    gap: 6,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  rowLeft: {
+    flex: 1,
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "#FFF",
+    marginRight: 8,
+  },
+  rowAmt: {
+    fontFamily: "Lexend_600SemiBold",
+    fontSize: 12,
+  },
+  credit: { color: "#68F5A4" },
+  debit: { color: "#FFB4B4" },
+  emptyLine: {
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.7)",
   },
 });
