@@ -568,7 +568,17 @@ export default function Deck() {
               </Animated.View>
             </>
           ) : (
-            <Animated.View style={[styles.absSlot, { top: 0 }]}>
+            <Animated.View
+              style={[
+                styles.absSlot,
+                {
+                  // Align quarterly card to its normal stacked position
+                  top: quarterTop,
+                  height: cardHeight,
+                  zIndex: 4, // keep it front
+                },
+              ]}
+            >
               <QuarterlyTransactionCard
                 summary={windows.twoMonths}
                 hasData={false}
