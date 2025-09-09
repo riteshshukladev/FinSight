@@ -669,6 +669,9 @@ export default function Deck() {
                   {
                     zIndex: 0,
                     overflow: "hidden",
+                    // ensure rounded bottom edges while height animates
+                    borderBottomLeftRadius: 28,
+                    borderBottomRightRadius: 28,
                   },
                 ]}
               >

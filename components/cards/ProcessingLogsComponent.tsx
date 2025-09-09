@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
     overflow: "hidden",
-    justifyContent: "center",
+    justifyContent: "flex-start", 
   },
   title: {
     fontFamily: "Lexend_700Bold",
