@@ -32,17 +32,21 @@ import Animated, {
   Easing,
   useDerivedValue,
   withDelay,
+  SlideInUp, // slide from bottom
+  SlideInDown,
 } from "react-native-reanimated";
 
 import QuarterlyTransactionCard from "../../components/cards/QuarterlyTransactionCard";
 import MonthTransactionCard from "../../components/cards/MonthTransactionCard";
 import WeekTransactionCard from "../../components/cards/WeekTransactionCard";
 import TodayTransactionCard from "../../components/cards/TodayTransactionCard";
+import EmptyTodayComponent from "../../components/cards/EmptyTodayComponent";
 import { useSMSDataContext } from "../../hooks/SMSDataContext";
 import { useTransactionWindows } from "@/hooks/useTransactionWindow";
 import { TouchableOpacity } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import ProcessingLogsComponent from "../../components/cards/ProcessingLogsComponent";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -150,13 +154,16 @@ export default function Deck() {
     const rawMonthTop = rawWeekTop + base;
     const rawQuarterTop = rawMonthTop + base;
 
-    // Apply back-stack shifting (Quarter unchanged)
+    // APPLY dynamic extra push for Today ONLY when no data yet
+    const dynamicTodayExtra = hasData ? 0 : TODAY_EXTRA_PUSH;
+
     const todayTopFinal =
       rawTodayTop +
       STACK_SHIFT * 3 +
       FINE_LAYER_SHIFT * 3 +
       EXTRA_HIDE_SHIFT +
-      TODAY_EXTRA_PUSH;
+      dynamicTodayExtra; // was unconditional TODAY_EXTRA_PUSH
+
     const weekTopFinal =
       rawWeekTop +
       STACK_SHIFT * 2 +
@@ -164,13 +171,15 @@ export default function Deck() {
       EXTRA_HIDE_SHIFT +
       WEEK_EXTRA_PUSH +
       WEEK_DEEPER_PUSH;
+
     const monthTopFinal =
       rawMonthTop +
       STACK_SHIFT * 1 +
       FINE_LAYER_SHIFT * 1 +
       EXTRA_HIDE_SHIFT +
       MONTH_EXTRA_PUSH;
-    const quarterTopFinal = rawQuarterTop; // unchanged
+
+    const quarterTopFinal = rawQuarterTop;
 
     // Expanded height logic unchanged
     const maxUsableForExpansion =
@@ -184,8 +193,6 @@ export default function Deck() {
     exp = Math.min(exp, availableHeight - 8);
     exp = Math.round(exp);
 
-    const stageH = quarterTopFinal + base + BOTTOM_GAP;
-
     return {
       cardHeight: base,
       expandedHeight: exp,
@@ -193,9 +200,17 @@ export default function Deck() {
       weekTop: weekTopFinal,
       monthTop: monthTopFinal,
       quarterTop: quarterTopFinal,
-      stageHeight: stageH,
+      stageHeight: topSpacing + stackTotal + BOTTOM_GAP,
     };
-  }, [windowHeight, insets.top, insets.bottom, tabBarHeight, fontScale]);
+    // add hasData so position recalculates after processing finishes
+  }, [
+    windowHeight,
+    insets.top,
+    insets.bottom,
+    tabBarHeight,
+    fontScale,
+    hasData,
+  ]);
 
   // shared values (top + height)
   const tTop = useSharedValue(todayTop);
@@ -305,7 +320,12 @@ export default function Deck() {
   }));
 
   // Stage height to accommodate lowest card
-  const STAGE_HEIGHT = hasData ? stageHeight : 640;
+  const STAGE_HEIGHT = hasData
+    ? stageHeight
+    : Math.max(
+        640,
+        quarterTop + cardHeight * 3 + 24 // ensure room for 3x empty backdrop
+      );
 
   useEffect(() => {
     if (
@@ -568,25 +588,62 @@ export default function Deck() {
               </Animated.View>
             </>
           ) : (
-            <Animated.View
-              style={[
-                styles.absSlot,
-                {
-                  // Align quarterly card to its normal stacked position
-                  top: quarterTop,
-                  height: cardHeight,
-                  zIndex: 4, // keep it front
-                },
-              ]}
-            >
-              <QuarterlyTransactionCard
-                summary={windows.twoMonths}
-                hasData={false}
-                processing={!!processing}
-                fixedHeight={cardHeight}
-                isDetailsOpen={false}
-              />
-            </Animated.View>
+            <>
+              {/* Quarterly (front) at its normal position (unchanged) */}
+              <Animated.View
+                style={[
+                  styles.absSlot,
+                  {
+                    top: quarterTop,
+                    height: cardHeight,
+                    zIndex: 2, // front-most (int)
+                  },
+                ]}
+              >
+                <QuarterlyTransactionCard
+                  summary={windows.twoMonths}
+                  hasData={false}
+                  processing={!!processing}
+                  fixedHeight={cardHeight}
+                  isDetailsOpen={false}
+                />
+              </Animated.View>
+
+              {/* ProcessingLogsComponent (middle layer, fade-in) */}
+              {processing && (
+                <Animated.View
+                  entering={SlideInDown.duration(400)}
+                  style={[
+                    styles.absSlot,
+                    {
+                      // extend upward so it appears above the quarterly card
+                      top: quarterTop - (cardHeight * 2 - cardHeight), // i.e., quarterTop - cardHeight
+                      height: cardHeight * 2,
+                      zIndex: 1, 
+                    },
+                  ]}
+                >
+                  <ProcessingLogsComponent
+                    height={cardHeight * 2}
+                    logs={smsData?.processingLogs}
+                  />
+                </Animated.View>
+              )}
+
+              {/* EmptyToday backdrop (largest, behind) */}
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.absSlot,
+                  {
+                    top: quarterTop - cardHeight * 2,
+                    zIndex: 0, // back (int)
+                  },
+                ]}
+              >
+                <EmptyTodayComponent height={cardHeight * 3} />
+              </Animated.View>
+            </>
           )}
         </View>
       </View>

@@ -2,32 +2,28 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 
 interface Props {
-  height: number;
+  height?: number; // now optional
 }
 
 export default function EmptyTodayComponent({ height }: Props) {
   return (
-    <View style={[styles.card, { height }]}>
+    <View
+      style={[
+        styles.card,
+        height != null && { height },
+        // allow intrinsic height but keep a gentle minimum so backdrop still feels like a card stack
+        height == null && { minHeight: 360 },
+      ]}
+    >
       <View style={styles.headerBlock}>
         <View style={styles.logoCircle}>
           <Text style={styles.logoText}>FS</Text>
         </View>
-        <Text style={styles.title}>Processing Your Messages…</Text>
         <Text style={styles.subtitle}>
           We are scanning and classifying your SMS for Bank / UPI transactions.
           This can take a moment depending on how many messages you have.
         </Text>
       </View>
-      <View style={styles.stepsBox}>
-        <Text style={styles.stepLine}>• Reading SMS inbox</Text>
-        <Text style={styles.stepLine}>• Filtering Bank / UPI messages</Text>
-        <Text style={styles.stepLine}>• Classifying transactions (AI)</Text>
-        <Text style={styles.stepLineDim}>• Preparing dashboard…</Text>
-      </View>
-      <Text style={styles.footerNote}>
-        You can keep this screen open. Once complete, detailed transaction
-        windows will appear.
-      </Text>
     </View>
   );
 }
@@ -66,13 +62,6 @@ const styles = StyleSheet.create({
     fontSize: 30,
     color: "#FFF",
     letterSpacing: 1,
-  },
-  title: {
-    fontFamily: "Lexend_700Bold",
-    fontSize: 22,
-    color: "#FFF",
-    textAlign: "center",
-    lineHeight: 30,
   },
   subtitle: {
     marginTop: 10,
