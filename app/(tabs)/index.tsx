@@ -223,6 +223,9 @@ export default function Deck() {
   const mHeight = useSharedValue(cardHeight);
   const qHeight = useSharedValue(cardHeight);
 
+  const emptyTodayHeight = useSharedValue(cardHeight * 3);
+  const emptyTodayTop = useSharedValue(quarterTop - cardHeight * 2);
+
   const backdropOpacity = useSharedValue(0);
 
   // Animate stack into base positions when data loads
@@ -280,6 +283,32 @@ export default function Deck() {
     }
   }, [detailCard]);
 
+  useEffect(() => {
+    const springConfig = { damping: 20, stiffness: 150 };
+
+    if (processing) {
+      // Extend height AND move top upward when processing starts
+      emptyTodayHeight.value = withSpring(cardHeight * 4, springConfig);
+      emptyTodayTop.value = withSpring(
+        quarterTop - cardHeight * 3,
+        springConfig
+      );
+    } else {
+      // Return to normal height and position when processing ends
+      emptyTodayHeight.value = withSpring(cardHeight * 3, springConfig);
+      emptyTodayTop.value = withSpring(
+        quarterTop - cardHeight * 2,
+        springConfig
+      );
+    }
+  }, [processing, cardHeight, quarterTop]);
+
+  // Replace the existing emptyTodayAnimatedStyle with this:
+  const emptyTodayAnimatedStyle = useAnimatedStyle(() => ({
+    height: emptyTodayHeight.value,
+    top: emptyTodayTop.value,
+  }));
+
   // Animated styles
   const animToday = useAnimatedStyle(() => ({
     top: tTop.value,
@@ -305,6 +334,7 @@ export default function Deck() {
     right: 0,
     opacity: detailCard && detailCard !== "month" ? 0 : 1,
   }));
+
   const animQuarter = useAnimatedStyle(() => ({
     top: qTop.value,
     height: qHeight.value,
@@ -619,7 +649,7 @@ export default function Deck() {
                       // extend upward so it appears above the quarterly card
                       top: quarterTop - (cardHeight * 2 - cardHeight), // i.e., quarterTop - cardHeight
                       height: cardHeight * 2,
-                      zIndex: 1, 
+                      zIndex: 1,
                     },
                   ]}
                 >
@@ -635,13 +665,14 @@ export default function Deck() {
                 pointerEvents="none"
                 style={[
                   styles.absSlot,
+                  emptyTodayAnimatedStyle,
                   {
-                    top: quarterTop - cardHeight * 2,
-                    zIndex: 0, // back (int)
+                    zIndex: 0,
+                    overflow: "hidden",
                   },
                 ]}
               >
-                <EmptyTodayComponent height={cardHeight * 3} />
+                <EmptyTodayComponent height={cardHeight * 4} />
               </Animated.View>
             </>
           )}

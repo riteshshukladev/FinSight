@@ -21,7 +21,8 @@ export default function EmptyTodayComponent({ height }: Props) {
         </View>
         <Text style={styles.subtitle}>
           We are scanning and classifying your SMS for Bank / UPI transactions.
-          This can take a moment depending on how many messages you have.
+          This can take a moment de
+          ending on how many messages you have.
         </Text>
       </View>
     </View>
