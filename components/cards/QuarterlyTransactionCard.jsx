@@ -164,7 +164,7 @@ export default function QuarterlyTransactionCard({
       {!showSummary && (
         <>
           <View style={[styles.cutoffRow]}>
-            <Text style={styles.cutoffLabel}>Since:</Text>
+            {/* Removed "Since:" label */}
             <TouchableOpacity
               style={styles.cutoffBtn}
               onPress={() => setShowPicker(true)}
@@ -174,19 +174,10 @@ export default function QuarterlyTransactionCard({
               <Text style={styles.cutoffBtnText}>
                 {processingCutoff
                   ? processingCutoff.toLocaleDateString()
-                  : "All time"}
+                  : "Last 2 months"}
               </Text>
             </TouchableOpacity>
-            {processingCutoff && (
-              <TouchableOpacity
-                onPress={() => setProcessingCutoff(null)}
-                style={styles.clearBtn}
-                disabled={isProcessing}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.clearBtnText}>×</Text>
-              </TouchableOpacity>
-            )}
+            {/* Removed clear (×) button */}
           </View>
           {showPicker && (
             <DateTimePicker
@@ -213,7 +204,7 @@ const RADIUS = 28;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#B24C51",
+    backgroundColor: "rgba(115, 88, 149, 1)",
     borderRadius: RADIUS,
     paddingHorizontal: 16,
     paddingTop: 18,
@@ -237,15 +228,16 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   beginTitle: {
-    fontFamily: "Lexend_700Bold",
+    fontFamily: "Lexend_400Regular",
     fontSize: 22,
+    fontWeight: "400",
     color: "#FFF",
     lineHeight: 28,
     textAlign: "center",
   },
   beginSub: {
     marginTop: 4,
-    fontFamily: "Lexend_400Regular",
+    fontFamily: "Lexend_300Light",
     fontSize: 14,
     color: "rgba(255,255,255,0.9)",
     textAlign: "center",
@@ -259,20 +251,22 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.35)",
   },
   ctaText: {
-    fontFamily: "Lexend_600SemiBold",
-    fontSize: 13,
+    fontFamily: "Lexend_500Medium",
+    fontSize: 12,
     color: "#FFF",
     textTransform: "uppercase",
-    letterSpacing: 0.6,
+    letterSpacing: 0.2,
   },
 
   cutoffRow: {
     marginTop: 18,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center", // center align the button row
     gap: 8,
   },
   cutoffLabel: {
+    // removed usage in JSX; keep style if referenced elsewhere
     fontFamily: "Lexend_500Medium",
     fontSize: 13,
     color: "rgba(255,255,255,0.85)",
@@ -289,20 +283,7 @@ const styles = StyleSheet.create({
     fontFamily: "Lexend_500Medium",
     fontSize: 13,
     color: "#FFF",
-  },
-  clearBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.22)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  clearBtnText: {
-    fontFamily: "Lexend_600SemiBold",
-    fontSize: 18,
-    color: "#FFF",
-    lineHeight: 20,
+    textAlign: "center", // ensure text is centered
   },
   summaryHeaderRow: {
     flexDirection: "row",

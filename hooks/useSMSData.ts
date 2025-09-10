@@ -588,9 +588,8 @@ Return only valid JSON array:`;
 
     setLoading(true);
 
-    const DEFAULT_MIN_DATE = new Date(2025, 4, 1).getTime();
-    const cutoffStart = getCutoffStart();
-    const minDate = cutoffStart ?? DEFAULT_MIN_DATE;
+    const cutoffStart = getCutoffStart(); // default is 2 months ago if not set
+    const minDate = cutoffStart;
 
     return new Promise((resolve) => {
       interface SMSMessage { box: string; maxCount: number; minDate: number; }
@@ -780,11 +779,14 @@ Return only valid JSON array:`;
   };
 
   // Helper: start-of-day timestamp for "since" filtering
-  const getCutoffStart = (): number | null => {
-    if (!processingCutoff) return null;
-    const d = new Date(processingCutoff);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime();
+  const getCutoffStart = (): number => {
+    // If user didn’t pick a date, default to 2 months ago (start of day)
+    const base = processingCutoff ? new Date(processingCutoff) : new Date();
+    base.setHours(0, 0, 0, 0);
+    if (!processingCutoff) {
+      base.setMonth(base.getMonth() - 2);
+    }
+    return base.getTime();
   };
 
   return {

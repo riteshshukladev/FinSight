@@ -66,6 +66,7 @@ const WEEK_EXTRA_PUSH = 6; // existing week push
 const MONTH_EXTRA_PUSH = 8; // existing month push
 const TODAY_EXTRA_PUSH = 22; // increased (was 10) to push Today card further down
 const WEEK_DEEPER_PUSH = 10; // NEW additional push for week
+const TODAY_DATA_PUSH = 24; // NEW: overlap Today more when data is available
 
 type DetailCard = "today" | "week" | "month" | "quarter" | null;
 
@@ -154,15 +155,16 @@ export default function Deck() {
     const rawMonthTop = rawWeekTop + base;
     const rawQuarterTop = rawMonthTop + base;
 
-    // APPLY dynamic extra push for Today ONLY when no data yet
-    const dynamicTodayExtra = hasData ? 0 : TODAY_EXTRA_PUSH;
+    // APPLY dynamic extra push for Today
+    // when data is available, push Today a bit to hide its bottom behind Week
+    const dynamicTodayExtra = hasData ? TODAY_DATA_PUSH : TODAY_EXTRA_PUSH;
 
     const todayTopFinal =
       rawTodayTop +
       STACK_SHIFT * 3 +
       FINE_LAYER_SHIFT * 3 +
       EXTRA_HIDE_SHIFT +
-      dynamicTodayExtra; // was unconditional TODAY_EXTRA_PUSH
+      dynamicTodayExtra;
 
     const weekTopFinal =
       rawWeekTop +
@@ -202,7 +204,6 @@ export default function Deck() {
       quarterTop: quarterTopFinal,
       stageHeight: topSpacing + stackTotal + BOTTOM_GAP,
     };
-    // add hasData so position recalculates after processing finishes
   }, [
     windowHeight,
     insets.top,
