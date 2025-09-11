@@ -1,5 +1,7 @@
 import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
+// NEW: top-edge shadow
+import { LinearGradient } from "expo-linear-gradient";
 
 interface Props {
   height: number;
@@ -40,6 +42,14 @@ export default function ProcessingLogsComponent({ height, logs = [] }: Props) {
 
   return (
     <View style={[styles.card, { height }]}>
+      {/* Top-edge stacked shadow */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={["rgba(0,0,0,0.18)", "rgba(0,0,0,0.10)", "transparent"]}
+        locations={[0, 0.25, 1]}
+        style={styles.topEdgeShadow}
+      />
+
       <Text style={styles.title}>processing text</Text>
       <Text style={styles.subtitle}>
         Processed {currentBatch} out of {totalBatches} batches
@@ -55,7 +65,7 @@ export default function ProcessingLogsComponent({ height, logs = [] }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#F6A04C",
+    backgroundColor: "#77B49D",
     borderRadius: 28,
     paddingHorizontal: 20,
     paddingTop: 28,
@@ -66,26 +76,35 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
     overflow: "hidden",
-    justifyContent: "flex-start", 
+    justifyContent: "flex-start",
   },
   title: {
-    fontFamily: "Lexend_700Bold",
-    fontSize: 28,
+    fontFamily: "Lexend_400Regular",
+    fontSize: 26,
     color: "#FFF",
     textAlign: "center",
-    marginBottom: 6,
+    marginBottom: 8,
   },
   subtitle: {
-    fontFamily: "Lexend_400Regular",
+    fontFamily: "Lexend_300Light",
     fontSize: 14,
     color: "rgba(255,255,255,0.9)",
     textAlign: "center",
   },
   foundText: {
-    marginTop: 8,
-    fontFamily: "Lexend_500Medium",
+    marginTop: 4,
+    fontFamily: "Lexend_400Regular",
     fontSize: 14,
     color: "#FFF",
     textAlign: "center",
+  },
+  topEdgeShadow: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 18,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
   },
 });

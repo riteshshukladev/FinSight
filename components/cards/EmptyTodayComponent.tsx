@@ -19,10 +19,10 @@ export default function EmptyTodayComponent({ height }: Props) {
         <View style={styles.logoCircle}>
           <Text style={styles.logoText}>FS</Text>
         </View>
+        <Text style={styles.appTitle}>finsight</Text>
         <Text style={styles.subtitle}>
-          We are scanning and classifying your SMS for Bank / UPI transactions.
-          This can take a moment de
-          ending on how many messages you have.
+          {"Smart finance, simplified.\n"}
+          {"We’ll scan your SMS and organize transactions with AI."}
         </Text>
       </View>
     </View>
@@ -49,6 +49,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
+  appTitle: {
+    fontFamily: "Lexend_500Medium",
+    fontSize: 22,
+    color: "#FFF",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 10,
+  },
   logoCircle: {
     width: 72,
     height: 72,
@@ -66,11 +74,12 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginTop: 10,
-    fontFamily: "Lexend_400Regular",
+    fontFamily: "Lexend_300Light",
     fontSize: 14,
     color: "rgba(255,255,255,0.9)",
     textAlign: "center",
     lineHeight: 20,
+    width: "85%",
   },
   stepsBox: {
     marginTop: 8,

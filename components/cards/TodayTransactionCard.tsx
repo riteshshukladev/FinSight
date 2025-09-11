@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   LayoutChangeEvent,
+  Image, // ADDED
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, {
@@ -38,6 +39,8 @@ type Props = {
   onOpenDetails?: () => void; // NEW
   onCloseDetails?: () => void; // NEW
 };
+
+const expandIcon = require("../../assets/icons/expand-icon.png"); // ADDED
 
 export default function TodayTransactionCard({
   isExpanded,
@@ -122,26 +125,46 @@ export default function TodayTransactionCard({
           onPress={isDetailsOpen ? onCloseDetails : onOpenDetails}
         >
           <View style={styles.dottedInner}>
-            <Ionicons
-              name={isDetailsOpen ? "close" : "expand-outline"}
-              size={20}
-              color="rgba(0,0,0,0.85)"
-            />
+            {isDetailsOpen ? (
+              <Ionicons name="close" size={20} color="rgba(0,0,0,0.85)" />
+            ) : (
+              <Image
+                source={expandIcon}
+                style={{ width: 25, height: 25, tintColor: "rgba(0,0,0,0.85)" }}
+                resizeMode="contain"
+              />
+            )}
           </View>
         </TouchableOpacity>
 
         <Animated.View style={contentAnim}>
-          <Text style={styles.title}>Today’s Activity</Text>
-          <Text style={styles.subtitle}>
-            {isCollapsed
-              ? "Collapsed preview"
-              : showSummary
-                ? `${summary.totalCount} tx | ₹${summary.totalCredit} in / ₹${summary.totalDebit} out`
-                : processing
-                  ? "Processing today’s transactions..."
-                  : "Daily snapshot"}
-          </Text>
-
+          {isDetailsOpen && (
+            <>
+              <Text style={styles.title}>Today’s Activity</Text>
+              <Text style={styles.subtitle}>
+                {isCollapsed
+                  ? "Collapsed preview"
+                  : showSummary
+                    ? `${summary.totalCount} tx`
+                    : processing
+                      ? "Processing today’s transactions..."
+                      : "Daily snapshot"}
+              </Text>
+              {/* header meta row */}
+              <View style={styles.headerMetaRow}>
+                <Text style={styles.headerMetaText}>
+                  Make money, spend Money
+                </Text>
+                <Text style={styles.headerMetaDate}>
+                  {new Date().toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </Text>
+              </View>
+            </>
+          )}
           {showDetailsList && (
             <View style={styles.listBox}>
               {summary.top.length === 0 && (
@@ -169,10 +192,50 @@ export default function TodayTransactionCard({
           )}
         </Animated.View>
 
-        <View style={styles.rightBlock}>
-          <Text style={styles.amount}>12</Text>
-          <Text style={styles.date}>Now</Text>
-        </View>
+        {isDetailsOpen ? (
+          <View style={styles.rightBlock}>
+            <Text style={styles.amount}>12</Text>
+            <Text style={styles.date}>Now</Text>
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.bottomSummaryRow,
+              { flexDirection: "column", gap: 2 },
+            ]}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "flex-end",
+                width: "100%",
+              }}
+            >
+              <Text style={styles.bottomTitle}>Today's Transactions</Text>
+              <Text style={styles.bottomCount}>
+                {(summary?.totalCount ?? 0).toLocaleString("en-IN")}
+              </Text>
+            </View>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "flex-end",
+                width: "100%",
+              }}
+            >
+              <Text style={styles.bottomSubtitle}>Make money have money</Text>
+              <Text style={styles.bottomDate}>
+                {new Date().toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </Text>
+            </View>
+          </View>
+        )}
       </Animated.View>
     </TouchableOpacity>
   );
@@ -182,12 +245,12 @@ const RADIUS = 28;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#F1784C",
+    backgroundColor: "#F77043",
     borderRadius: RADIUS,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     paddingHorizontal: 16,
-    paddingTop: 14, // raise inner content by 4px
+    paddingTop: 14,
     paddingBottom: 18,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
@@ -195,6 +258,16 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
     overflow: "hidden",
+  },
+  bottomSubtitle: {
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "rgba(246,246,246,0.8)",
+  },
+  bottomDate: {
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "rgba(246,246,246,0.8)",
   },
   title: {
     fontFamily: "Lexend_600SemiBold",
@@ -219,10 +292,10 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   dottedInner: {
-    width: 28,
-    height: 28,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.25)",
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -268,5 +341,40 @@ const styles = StyleSheet.create({
     fontFamily: "Lexend_400Regular",
     fontSize: 12,
     color: "rgba(255,255,255,0.7)",
+  },
+  bottomSummaryRow: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 36,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  bottomTitle: {
+    fontFamily: "Lexend_300Light",
+    fontSize: 26,
+    color: "#F6F6F6",
+  },
+  bottomCount: {
+    fontFamily: "Lexend_300Light",
+    fontSize: 24,
+    color: "#F6F6F6",
+  },
+  headerMetaRow: {
+    marginTop: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerMetaText: {
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.9)",
+  },
+  headerMetaDate: {
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.85)",
   },
 });

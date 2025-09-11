@@ -1,7 +1,8 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native"; // ADDED Image
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn } from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient"; // NEW: top-edge shadow
 
 export default function MonthTransactionCard({
   isExpanded,
@@ -21,32 +22,47 @@ export default function MonthTransactionCard({
     const v = Math.abs(parseFloat(String(a)) || 0);
     return v.toLocaleString("en-IN");
   };
+  const expandIcon = require("../../assets/icons/expand-icon.png"); // ADDED
+
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={() => {}}>
       <View style={[styles.card, fixedHeight && { height: fixedHeight }]}>
+        {/* Top-edge stacked shadow */}
+        <LinearGradient
+          pointerEvents="none"
+          colors={["rgba(0,0,0,0.18)", "rgba(0,0,0,0.10)", "transparent"]}
+          locations={[0, 0.25, 1]}
+          style={styles.topEdgeShadow}
+        />
         <TouchableOpacity
           style={styles.topRight}
           activeOpacity={0.85}
           onPress={isDetailsOpen ? onCloseDetails : onOpenDetails}
         >
           <View style={styles.dottedInner}>
-            <Ionicons
-              name={isDetailsOpen ? "close" : "expand-outline"}
-              size={20}
-              color="rgba(0,0,0,0.85)"
-            />
+            {isDetailsOpen ? (
+              <Ionicons name="close" size={20} color="rgba(0,0,0,0.85)" />
+            ) : (
+              <Image
+                source={expandIcon}
+                style={{ width: 25, height: 25, tintColor: "rgba(0,0,0,0.85)" }}
+                resizeMode="contain"
+              />
+            )}
           </View>
         </TouchableOpacity>
-        <View>
-          <Text style={styles.title}>Month’s Transactions</Text>
-          <Text style={styles.subtitle}>
-            {showSummary
-              ? `${summary.totalCount} tx | ₹${summary.totalCredit} in / ₹${summary.totalDebit} out`
-              : processing
-                ? "Processing monthly data..."
-                : "Make money, spend Money"}
-          </Text>
-        </View>
+        {isDetailsOpen && (
+          <View>
+            <Text style={styles.title}>Month’s Transactions</Text>
+            <Text style={styles.subtitle}>
+              {showSummary
+                ? `${summary.totalCount} tx`
+                : processing
+                  ? "Processing monthly data..."
+                  : "Make money, spend Money"}
+            </Text>
+          </View>
+        )}
         {showDetailsList && (
           <View style={styles.listBox}>
             {summary.top.length === 0 && (
@@ -72,22 +88,62 @@ export default function MonthTransactionCard({
             ))}
           </View>
         )}
-        <View style={styles.rightBlock}>
-          <Text className="amount">
-            ₹
-            {showSummary
-              ? (summary.totalCredit - summary.totalDebit).toLocaleString(
-                  "en-IN"
-                )
-              : "0"}
-          </Text>
-          <Text style={styles.date}>
-            {new Date().toLocaleDateString("en-IN", {
-              month: "short",
-              year: "numeric",
-            })}
-          </Text>
-        </View>
+        {isDetailsOpen ? (
+          <View style={styles.rightBlock}>
+            <Text className="amount">
+              ₹
+              {showSummary
+                ? (summary.totalCredit - summary.totalDebit).toLocaleString(
+                    "en-IN"
+                  )
+                : "0"}
+            </Text>
+            <Text style={styles.date}>
+              {new Date().toLocaleDateString("en-IN", {
+                month: "short",
+                year: "numeric",
+              })}
+            </Text>
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.bottomSummaryRow,
+              { flexDirection: "column", gap: 2 },
+            ]}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "flex-end",
+                width: "100%",
+              }}
+            >
+              <Text style={styles.bottomTitle}>Month’s Transactions</Text>
+              <Text style={styles.bottomCount}>
+                {(summary?.totalCount ?? 0).toLocaleString("en-IN")}
+              </Text>
+            </View>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "flex-end",
+                width: "100%",
+              }}
+            >
+              <Text style={styles.bottomSubtitle}>Make money have money</Text>
+              <Text style={styles.bottomDate}>
+                {new Date().toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -97,12 +153,12 @@ const RADIUS = 28;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#4C89D9",
+    backgroundColor: "#5691A6",
     borderRadius: RADIUS,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     paddingHorizontal: 16,
-    paddingTop: 14, // raise content
+    paddingTop: 14,
     paddingBottom: 18,
     minHeight: undefined,
     shadowColor: "#000",
@@ -142,10 +198,10 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   dottedInner: {
-    width: 28,
-    height: 28,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.25)",
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -200,5 +256,43 @@ const styles = StyleSheet.create({
     fontFamily: "Lexend_400Regular",
     fontSize: 12,
     color: "rgba(255,255,255,0.7)",
+  },
+  topEdgeShadow: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 18,
+    borderTopLeftRadius: RADIUS,
+    borderTopRightRadius: RADIUS,
+  },
+  bottomSummaryRow: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 36,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  bottomTitle: {
+    fontFamily: "Lexend_300Light",
+    fontSize: 26,
+    color: "#F6F6F6",
+  },
+  bottomCount: {
+    fontFamily: "Lexend_300Light",
+    fontSize: 24,
+    color: "#F6F6F6",
+  },
+  bottomSubtitle: {
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "rgba(246,246,246,0.8)",
+  },
+  bottomDate: {
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "rgba(246,246,246,0.8)",
   },
 });

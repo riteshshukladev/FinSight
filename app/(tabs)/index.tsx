@@ -70,6 +70,8 @@ const TODAY_DATA_PUSH = 24; // NEW: overlap Today more when data is available
 
 type DetailCard = "today" | "week" | "month" | "quarter" | null;
 
+const DEFAULT_TABBAR_HEIGHT = Platform.OS === "ios" ? 95 : 75; // Seed a stable tab bar height to prevent initial layout jump
+
 export default function Deck() {
   const [fontsLoaded] = useFonts({
     Lexend_300Light,
@@ -79,6 +81,7 @@ export default function Deck() {
     Lexend_700Bold,
   });
   const tabBarHeight = useBottomTabBarHeight();
+  const stableTabBarHeight = tabBarHeight || DEFAULT_TABBAR_HEIGHT;
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const fontScale = PixelRatio.getFontScale();
@@ -112,7 +115,7 @@ export default function Deck() {
     quarterTop,
     stageHeight,
   } = React.useMemo(() => {
-    const tabPad = tabBarHeight || 0;
+    const tabPad = stableTabBarHeight;
 
     const availableHeightRaw =
       windowHeight - insets.top - insets.bottom - tabPad - SAFE_VERTICAL_MARGIN;
@@ -208,7 +211,7 @@ export default function Deck() {
     windowHeight,
     insets.top,
     insets.bottom,
-    tabBarHeight,
+    stableTabBarHeight,
     fontScale,
     hasData,
   ]);
@@ -372,7 +375,7 @@ export default function Deck() {
   }, [fontsLoaded]);
   if (!fontsLoaded) return null;
 
-  const bottomPad = tabBarHeight + 12;
+  const bottomPad = stableTabBarHeight + 12;
 
   const summaries: Record<string, any> = {
     today: windows.today,
@@ -692,7 +695,7 @@ const styles = StyleSheet.create({
   bottomWrap: {
     flex: 1,
     justifyContent: "flex-start",
-    paddingHorizontal: 16,
+    paddingHorizontal: 4,
     overflow: "visible",
   },
   stage: { position: "relative", overflow: "visible", width: "100%" },

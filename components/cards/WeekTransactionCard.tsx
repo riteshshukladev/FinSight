@@ -5,8 +5,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
+  Image, // ADDED
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+// NEW: top-edge shadow
+import { LinearGradient } from "expo-linear-gradient";
 import { useSMSDataContext } from "../../hooks/SMSDataContext";
 // NEW: reanimated
 import Reanimated, {
@@ -133,12 +136,21 @@ export default function WeekTransactionCard({
   const showSummary = hasData && !processing && summary;
   const showDetailsList = showSummary && isDetailsOpen && summary;
 
+  const expandIcon = require("../../assets/icons/expand-icon.png"); // ADDED
+
   return (
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={isCollapsed ? toggle : undefined}
     >
       <Reanimated.View style={[styles.card, cardAnimStyle]} onLayout={onLayout}>
+        {/* Top-edge stacked shadow */}
+        <LinearGradient
+          pointerEvents="none"
+          colors={["rgba(0,0,0,0.18)", "rgba(0,0,0,0.10)", "transparent"]}
+          locations={[0, 0.25, 1]}
+          style={styles.topEdgeShadow}
+        />
         {/* Collapse / Expand button (top-right) */}
         <TouchableOpacity
           style={styles.topRight}
@@ -146,27 +158,34 @@ export default function WeekTransactionCard({
           activeOpacity={0.85}
         >
           <View style={styles.dottedInner}>
-            <Ionicons
-              name={isDetailsOpen ? "close" : "expand-outline"}
-              size={20}
-              color="rgba(0,0,0,0.85)"
-            />
+            {isDetailsOpen ? (
+              <Ionicons name="close" size={20} color="rgba(0,0,0,0.85)" />
+            ) : (
+              <Image
+                source={expandIcon}
+                style={{ width: 25, height: 25, tintColor: "rgba(0,0,0,0.85)" }}
+                resizeMode="contain"
+              />
+            )}
           </View>
         </TouchableOpacity>
 
         <Reanimated.View style={headerAnim}>
-          <Text style={styles.title}>Week’s Transactions</Text>
-          <Text style={styles.subtitle}>
-            {isCollapsed
-              ? "Collapsed preview"
-              : showSummary
-                ? `${summary.totalCount} tx | ₹${summary.totalCredit} in / ₹${summary.totalDebit} out`
-                : processing
-                  ? "Processing weekly data..."
-                  : "Make money, spend Money"}
-          </Text>
+          {isDetailsOpen && (
+            <>
+              <Text style={styles.title}>Week’s Transactions</Text>
+              <Text style={styles.subtitle}>
+                {isCollapsed
+                  ? "Collapsed preview"
+                  : showSummary
+                    ? `${summary.totalCount} tx`
+                    : processing
+                      ? "Processing weekly data..."
+                      : "Make money, spend Money"}
+              </Text>
+            </>
+          )}
         </Reanimated.View>
-
         {showDetailsList && (
           <View style={styles.listBox}>
             {summary.top.length === 0 && (
@@ -208,10 +227,50 @@ export default function WeekTransactionCard({
           </Reanimated.View>
         )}
 
-        <View style={styles.rightBlock}>
-          <Text style={styles.amount}>32</Text>
-          <Text style={styles.date}>22/06/25</Text>
-        </View>
+        {isDetailsOpen ? (
+          <View style={styles.rightBlock}>
+            <Text style={styles.amount}>32</Text>
+            <Text style={styles.date}>22/06/25</Text>
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.bottomSummaryRow,
+              { flexDirection: "column", gap: 2 },
+            ]}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "flex-end",
+                width: "100%",
+              }}
+            >
+              <Text style={styles.bottomTitle}>Week’s Transactions</Text>
+              <Text style={styles.bottomCount}>
+                {(summary?.totalCount ?? 0).toLocaleString("en-IN")}
+              </Text>
+            </View>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "flex-end",
+                width: "100%",
+              }}
+            >
+              <Text style={styles.bottomSubtitle}>Make money have money</Text>
+              <Text style={styles.bottomDate}>
+                {new Date().toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </Text>
+            </View>
+          </View>
+        )}
       </Reanimated.View>
     </TouchableOpacity>
   );
@@ -221,7 +280,7 @@ const RADIUS = 28;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#7CBFA9",
+    backgroundColor: "#77B49D",
     borderRadius: RADIUS,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
@@ -275,10 +334,10 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   dottedInner: {
-    width: 28,
-    height: 28,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.25)",
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -324,5 +383,43 @@ const styles = StyleSheet.create({
     fontFamily: "Lexend_400Regular",
     fontSize: 12,
     color: "rgba(255,255,255,0.7)",
+  },
+  topEdgeShadow: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 18,
+    borderTopLeftRadius: RADIUS,
+    borderTopRightRadius: RADIUS,
+  },
+  bottomSummaryRow: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 36,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  bottomTitle: {
+    fontFamily: "Lexend_300Light",
+    fontSize: 26,
+    color: "#F6F6F6",
+  },
+  bottomCount: {
+    fontFamily: "Lexend_300Light",
+    fontSize: 24,
+    color: "#F6F6F6",
+  },
+  bottomSubtitle: {
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "rgba(246,246,246,0.8)",
+  },
+  bottomDate: {
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "rgba(246,246,246,0.8)",
   },
 });
