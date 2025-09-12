@@ -27,6 +27,7 @@ export default function QuarterlyTransactionCard({
   const smsData = useSMSDataContext();
   const ctxProcessing = smsData?.processing;
   const forceRefresh = smsData?.forceRefresh;
+  const clearAllData = smsData?.clearAllData; // NEW
   const isProcessing = processing || ctxProcessing;
 
   // keep cutoff only for pre‑data state
@@ -70,6 +71,29 @@ export default function QuarterlyTransactionCard({
   };
 
   const expandIcon = require("../../assets/icons/expand-icon.png"); // ADDED
+
+  const onRefreshConfirm = () => {
+    Alert.alert(
+      "Clear & Refresh",
+      "This will remove all processed data and reset to the no‑data state. Continue?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Only clear; do NOT auto-start processing
+              if (clearAllData) await clearAllData();
+              else if (forceRefresh) await forceRefresh(); // fallback
+            } catch (e) {
+              Alert.alert("Error", String(e));
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <View style={[styles.card, fixedHeight && { height: fixedHeight }]}>
@@ -125,13 +149,13 @@ export default function QuarterlyTransactionCard({
             </View>
           </TouchableOpacity>
 
-          {isDetailsOpen && (
-            <View>
-              <Text style={styles.summaryTitle}>Quarterly Transactions</Text>
-              <Text style={styles.summarySubtitle}>
-                {summary.totalCount} tx
+          {isDetailsOpen && showSummary && (
+            <>
+              <Text style={styles.reportTitle}>
+                Two months transaction report
               </Text>
-            </View>
+              <View style={styles.reportDivider} />
+            </>
           )}
 
           {showDetailsList && (
@@ -141,43 +165,31 @@ export default function QuarterlyTransactionCard({
                   No transactions in this period
                 </Text>
               )}
-              {summary.top.map((t, i) => (
-                <View key={i} style={styles.row}>
-                  <Text style={styles.rowLeft} numberOfLines={1}>
-                    {t.description ||
-                      t.merchant ||
-                      t.category ||
-                      t.address ||
-                      "—"}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.rowAmt,
-                      (t.type || "").toUpperCase() === "CREDIT"
-                        ? styles.credit
-                        : styles.debit,
-                    ]}
-                  >
-                    {(t.type || "").toUpperCase() === "CREDIT" ? "+" : "-"}₹
-                    {formatAmt(t.amount)}
-                  </Text>
-                </View>
-              ))}
+              {summary.top.slice(0, 8).map((t, i) => {
+                const isCredit = (t.type || "").toUpperCase() === "CREDIT";
+                const amountRs = formatAmt(t.amount);
+                const verb = isCredit ? "received" : "sent";
+                return (
+                  <View key={i} style={styles.row}>
+                    <Text style={styles.descLine} numberOfLines={1}>
+                      {`${amountRs} rs ${verb}`}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.signedAmt,
+                        isCredit ? styles.credit : styles.debit,
+                      ]}
+                    >
+                      {isCredit ? "+" : "-"}
+                      {amountRs}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           )}
 
-          {isDetailsOpen ? (
-            <View style={styles.rightBlock}>
-              <Text style={styles.amount}>{summary.totalCount}</Text>
-              <Text style={styles.date}>
-                {new Date().toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "2-digit",
-                })}
-              </Text>
-            </View>
-          ) : (
+          {!isDetailsOpen && (
             <View
               style={[
                 styles.bottomSummaryRow,
@@ -216,6 +228,15 @@ export default function QuarterlyTransactionCard({
               </View>
             </View>
           )}
+
+          {/* Bottom-right refresh? button (data present) */}
+          <TouchableOpacity
+            onPress={onRefreshConfirm}
+            activeOpacity={0.8}
+            style={styles.refreshMini}
+          >
+            <Text style={styles.refreshMiniText}>refresh?</Text>
+          </TouchableOpacity>
         </>
       )}
 
@@ -368,33 +389,36 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   listBox: {
-    marginTop: 4,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 14,
-    padding: 10,
-    gap: 6,
+    marginTop: 14,
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    padding: 0,
+    gap: 10,
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    // paddingVertical: 2,
+    paddingHorizontal: 14,
   },
-  rowLeft: {
+  descLine: {
     flex: 1,
-    fontFamily: "Lexend_400Regular",
-    fontSize: 12,
+    fontFamily: "Lexend_300Light",
+    fontSize: 14,
     color: "#FFF",
-    marginRight: 8,
+    marginRight: 4,
   },
-  rowAmt: {
-    fontFamily: "Lexend_600SemiBold",
-    fontSize: 12,
+  signedAmt: {
+    fontFamily: "Lexend_300Light",
+    fontSize: 14,
   },
   credit: { color: "#68F5A4" },
   debit: { color: "#FFB4B4" },
   emptyWindowText: {
     fontFamily: "Lexend_400Regular",
     fontSize: 13,
+    textAlign: "center",
     color: "rgba(255,255,255,0.7)",
     marginTop: 4,
   },
@@ -466,5 +490,33 @@ const styles = StyleSheet.create({
     fontFamily: "Lexend_400Regular",
     fontSize: 12,
     color: "rgba(246,246,246,0.8)",
+  },
+  reportTitle: {
+    marginTop: 32,
+    textAlign: "center",
+    fontFamily: "Lexend_300Light",
+    fontSize: 24,
+    color: "#FFF",
+  },
+  reportDivider: {
+    marginTop: 18,
+    marginBottom: 8,
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+  },
+  refreshMini: {
+    position: "absolute",
+    right: 12,
+    bottom: 10,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    zIndex: 12,
+  },
+  refreshMiniText: {
+    fontFamily: "Lexend_400Regular",
+    fontSize: 12,
+    color: "#ffffffcc",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "rgba(255,255,255,0.9)",
   },
 });

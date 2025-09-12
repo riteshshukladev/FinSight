@@ -110,12 +110,13 @@ export default function TodayTransactionCard({
   const showDetailsList = showSummary && isDetailsOpen && summary;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={isCollapsed ? toggle : undefined}
-    >
+    <View>
       <Animated.View
-        style={[styles.card, cardAnimStyle]}
+        style={[
+          styles.card,
+          isDetailsOpen && styles.expandedRoundBottom,
+          cardAnimStyle,
+        ]}
         onLayout={handleLayout}
       >
         {/* OPTIONAL: hide expand icon when fixed height */}
@@ -140,7 +141,7 @@ export default function TodayTransactionCard({
         <Animated.View style={contentAnim}>
           {isDetailsOpen && (
             <>
-              <Text style={styles.title}>Today’s Activity</Text>
+              {/* <Text style={styles.title}>Today’s Activity</Text>
               <Text style={styles.subtitle}>
                 {isCollapsed
                   ? "Collapsed preview"
@@ -149,9 +150,9 @@ export default function TodayTransactionCard({
                     : processing
                       ? "Processing today’s transactions..."
                       : "Daily snapshot"}
-              </Text>
+              </Text> */}
               {/* header meta row */}
-              <View style={styles.headerMetaRow}>
+              {/* <View style={styles.headerMetaRow}>
                 <Text style={styles.headerMetaText}>
                   Make money, spend Money
                 </Text>
@@ -162,7 +163,17 @@ export default function TodayTransactionCard({
                     year: "numeric",
                   })}
                 </Text>
-              </View>
+              </View> */}
+
+              {/* Report heading + divider (detailed state only) */}
+              {showSummary && (
+                <>
+                  <Text style={styles.reportTitle}>
+                    Today’s transaction report
+                  </Text>
+                  <View style={styles.reportDivider} />
+                </>
+              )}
             </>
           )}
           {showDetailsList && (
@@ -170,34 +181,32 @@ export default function TodayTransactionCard({
               {summary.top.length === 0 && (
                 <Text style={styles.emptyLine}>No transactions today</Text>
               )}
-              {summary.top.map((t: any, i: number) => (
-                <View key={i} style={styles.row}>
-                  <Text style={styles.rowLeft} numberOfLines={1}>
-                    {t.description || t.merchant || t.category || "—"}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.rowAmt,
-                      (t.type || "").toUpperCase() === "CREDIT"
-                        ? styles.credit
-                        : styles.debit,
-                    ]}
-                  >
-                    {(t.type || "").toUpperCase() === "CREDIT" ? "+" : "-"}₹
-                    {formatAmt(t.amount)}
-                  </Text>
-                </View>
-              ))}
+              {summary.top.slice(0, 8).map((t: any, i: number) => {
+                const isCredit = (t.type || "").toUpperCase() === "CREDIT";
+                const amountRs = formatAmt(t.amount);
+                const verb = isCredit ? "received" : "sent";
+                return (
+                  <View key={i} style={styles.row}>
+                    <Text style={styles.descLine} numberOfLines={1}>
+                      {`${amountRs} rs ${verb}`}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.signedAmt,
+                        isCredit ? styles.credit : styles.debit,
+                      ]}
+                    >
+                      {isCredit ? "+" : "-"}
+                      {amountRs}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           )}
         </Animated.View>
 
-        {isDetailsOpen ? (
-          <View style={styles.rightBlock}>
-            <Text style={styles.amount}>12</Text>
-            <Text style={styles.date}>Now</Text>
-          </View>
-        ) : (
+        {!isDetailsOpen && (
           <View
             style={[
               styles.bottomSummaryRow,
@@ -237,7 +246,7 @@ export default function TodayTransactionCard({
           </View>
         )}
       </Animated.View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -314,15 +323,17 @@ const styles = StyleSheet.create({
   },
   listBox: {
     marginTop: 14,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 14,
-    padding: 10,
-    gap: 6,
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    padding: 0,
+    gap: 10,
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    // optional: add vertical breathing room per row
+    // paddingVertical: 2,
   },
   rowLeft: {
     flex: 1,
@@ -339,6 +350,7 @@ const styles = StyleSheet.create({
   debit: { color: "#FFB4B4" },
   emptyLine: {
     fontFamily: "Lexend_400Regular",
+    textAlign: "center",
     fontSize: 12,
     color: "rgba(255,255,255,0.7)",
   },
@@ -346,7 +358,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     right: 16,
-    bottom: 36,
+    bottom: 40,
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
@@ -376,5 +388,33 @@ const styles = StyleSheet.create({
     fontFamily: "Lexend_400Regular",
     fontSize: 12,
     color: "rgba(255,255,255,0.85)",
+  },
+  expandedRoundBottom: {
+    borderBottomLeftRadius: RADIUS,
+    borderBottomRightRadius: RADIUS,
+  },
+  reportTitle: {
+    marginTop: 32,
+    textAlign: "center",
+    fontFamily: "Lexend_300Light",
+    fontSize: 24,
+    color: "#FFF",
+  },
+  reportDivider: {
+    marginTop: 18,
+    marginBottom: 8,
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+  },
+  descLine: {
+    flex: 1,
+    fontFamily: "Lexend_400Regular",
+    fontSize: 13,
+    color: "#FFF",
+    marginRight: 8,
+  },
+  signedAmt: {
+    fontFamily: "Lexend_600SemiBold",
+    fontSize: 13,
   },
 });

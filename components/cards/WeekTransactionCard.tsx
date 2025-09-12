@@ -139,11 +139,15 @@ export default function WeekTransactionCard({
   const expandIcon = require("../../assets/icons/expand-icon.png"); // ADDED
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={isCollapsed ? toggle : undefined}
-    >
-      <Reanimated.View style={[styles.card, cardAnimStyle]} onLayout={onLayout}>
+    <View>
+      <Reanimated.View
+        style={[
+          styles.card,
+          isDetailsOpen && styles.expandedRoundBottom,
+          cardAnimStyle,
+        ]}
+        onLayout={onLayout}
+      >
         {/* Top-edge stacked shadow */}
         <LinearGradient
           pointerEvents="none"
@@ -171,18 +175,10 @@ export default function WeekTransactionCard({
         </TouchableOpacity>
 
         <Reanimated.View style={headerAnim}>
-          {isDetailsOpen && (
+          {isDetailsOpen && showSummary && (
             <>
-              <Text style={styles.title}>Week’s Transactions</Text>
-              <Text style={styles.subtitle}>
-                {isCollapsed
-                  ? "Collapsed preview"
-                  : showSummary
-                    ? `${summary.totalCount} tx`
-                    : processing
-                      ? "Processing weekly data..."
-                      : "Make money, spend Money"}
-              </Text>
+              <Text style={styles.reportTitle}>weeks’s transaction report</Text>
+              <View style={styles.reportDivider} />
             </>
           )}
         </Reanimated.View>
@@ -191,24 +187,27 @@ export default function WeekTransactionCard({
             {summary.top.length === 0 && (
               <Text style={styles.emptyLine}>No weekly transactions</Text>
             )}
-            {summary.top.map((t: any, i: number) => (
-              <View key={i} style={styles.row}>
-                <Text style={styles.rowLeft} numberOfLines={1}>
-                  {t.description || t.merchant || t.category || "—"}
-                </Text>
-                <Text
-                  style={[
-                    styles.rowAmt,
-                    (t.type || "").toUpperCase() === "CREDIT"
-                      ? styles.credit
-                      : styles.debit,
-                  ]}
-                >
-                  {(t.type || "").toUpperCase() === "CREDIT" ? "+" : "-"}₹
-                  {formatAmt(t.amount)}
-                </Text>
-              </View>
-            ))}
+            {summary.top.slice(0, 8).map((t: any, i: number) => {
+              const isCredit = (t.type || "").toUpperCase() === "CREDIT";
+              const amountRs = formatAmt(t.amount);
+              const verb = isCredit ? "received" : "sent";
+              return (
+                <View key={i} style={styles.row}>
+                  <Text style={styles.descLine} numberOfLines={1}>
+                    {`${amountRs} rs ${verb}`}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.signedAmt,
+                      isCredit ? styles.credit : styles.debit,
+                    ]}
+                  >
+                    {isCredit ? "+" : "-"}
+                    {amountRs}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -227,12 +226,7 @@ export default function WeekTransactionCard({
           </Reanimated.View>
         )}
 
-        {isDetailsOpen ? (
-          <View style={styles.rightBlock}>
-            <Text style={styles.amount}>32</Text>
-            <Text style={styles.date}>22/06/25</Text>
-          </View>
-        ) : (
+        {!isDetailsOpen && (
           <View
             style={[
               styles.bottomSummaryRow,
@@ -272,7 +266,7 @@ export default function WeekTransactionCard({
           </View>
         )}
       </Reanimated.View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -354,33 +348,48 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "rgba(255,255,255,0.85)",
   },
+  reportTitle: {
+    marginTop: 32,
+    textAlign: "center",
+    fontFamily: "Lexend_300Light",
+    fontSize: 24,
+    color: "#FFF",
+  },
+  reportDivider: {
+    marginTop: 18,
+    marginBottom: 8,
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+  },
   listBox: {
     marginTop: 14,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderRadius: 14,
-    padding: 10,
-    gap: 6,
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    padding: 0,
+    gap: 10,
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingHorizontal: 14,
   },
-  rowLeft: {
+  descLine: {
     flex: 1,
-    fontFamily: "Lexend_400Regular",
-    fontSize: 12,
+    fontFamily: "Lexend_300Light",
+    fontSize: 14,
     color: "#FFF",
-    marginRight: 8,
+    marginRight: 4,
   },
-  rowAmt: {
-    fontFamily: "Lexend_600SemiBold",
-    fontSize: 12,
+  signedAmt: {
+    fontFamily: "Lexend_300Light",
+    fontSize: 14,
   },
   credit: { color: "#68F5A4" },
   debit: { color: "#FFB4B4" },
   emptyLine: {
     fontFamily: "Lexend_400Regular",
+    textAlign: "center",
     fontSize: 12,
     color: "rgba(255,255,255,0.7)",
   },
@@ -397,7 +406,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     right: 16,
-    bottom: 36,
+    bottom: 40,
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
@@ -421,5 +430,9 @@ const styles = StyleSheet.create({
     fontFamily: "Lexend_400Regular",
     fontSize: 12,
     color: "rgba(246,246,246,0.8)",
+  },
+  expandedRoundBottom: {
+    borderBottomLeftRadius: RADIUS,
+    borderBottomRightRadius: RADIUS,
   },
 });

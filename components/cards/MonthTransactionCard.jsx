@@ -25,8 +25,14 @@ export default function MonthTransactionCard({
   const expandIcon = require("../../assets/icons/expand-icon.png"); // ADDED
 
   return (
-    <TouchableOpacity activeOpacity={0.9} onPress={() => {}}>
-      <View style={[styles.card, fixedHeight && { height: fixedHeight }]}>
+    <View>
+      <View
+        style={[
+          styles.card,
+          isDetailsOpen && styles.expandedRoundBottom,
+          fixedHeight && { height: fixedHeight },
+        ]}
+      >
         {/* Top-edge stacked shadow */}
         <LinearGradient
           pointerEvents="none"
@@ -51,61 +57,41 @@ export default function MonthTransactionCard({
             )}
           </View>
         </TouchableOpacity>
-        {isDetailsOpen && (
-          <View>
-            <Text style={styles.title}>Month’s Transactions</Text>
-            <Text style={styles.subtitle}>
-              {showSummary
-                ? `${summary.totalCount} tx`
-                : processing
-                  ? "Processing monthly data..."
-                  : "Make money, spend Money"}
-            </Text>
-          </View>
+        {isDetailsOpen && showSummary && (
+          <>
+            <Text style={styles.reportTitle}>months transaction report</Text>
+            <View style={styles.reportDivider} />
+          </>
         )}
         {showDetailsList && (
           <View style={styles.listBox}>
             {summary.top.length === 0 && (
               <Text style={styles.emptyLine}>No monthly transactions</Text>
             )}
-            {summary.top.map((t, i) => (
-              <View key={i} style={styles.row}>
-                <Text style={styles.rowLeft} numberOfLines={1}>
-                  {t.description || t.merchant || t.category || "—"}
-                </Text>
-                <Text
-                  style={[
-                    styles.rowAmt,
-                    (t.type || "").toUpperCase() === "CREDIT"
-                      ? styles.credit
-                      : styles.debit,
-                  ]}
-                >
-                  {(t.type || "").toUpperCase() === "CREDIT" ? "+" : "-"}₹
-                  {formatAmt(t.amount)}
-                </Text>
-              </View>
-            ))}
+            {summary.top.slice(0, 8).map((t, i) => {
+              const isCredit = (t.type || "").toUpperCase() === "CREDIT";
+              const amountRs = formatAmt(t.amount);
+              const verb = isCredit ? "received" : "sent";
+              return (
+                <View key={i} style={styles.row}>
+                  <Text style={styles.descLine} numberOfLines={1}>
+                    {`${amountRs} rs ${verb}`}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.signedAmt,
+                      isCredit ? styles.credit : styles.debit,
+                    ]}
+                  >
+                    {isCredit ? "+" : "-"}
+                    {amountRs}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         )}
-        {isDetailsOpen ? (
-          <View style={styles.rightBlock}>
-            <Text className="amount">
-              ₹
-              {showSummary
-                ? (summary.totalCredit - summary.totalDebit).toLocaleString(
-                    "en-IN"
-                  )
-                : "0"}
-            </Text>
-            <Text style={styles.date}>
-              {new Date().toLocaleDateString("en-IN", {
-                month: "short",
-                year: "numeric",
-              })}
-            </Text>
-          </View>
-        ) : (
+        {!isDetailsOpen && (
           <View
             style={[
               styles.bottomSummaryRow,
@@ -145,7 +131,7 @@ export default function MonthTransactionCard({
           </View>
         )}
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -179,6 +165,19 @@ const styles = StyleSheet.create({
     fontFamily: "Lexend_400Regular",
     fontSize: 14,
     color: "rgba(255,255,255,0.85)",
+  },
+  reportTitle: {
+    marginTop: 32,
+    textAlign: "center",
+    fontFamily: "Lexend_300Light",
+    fontSize: 24,
+    color: "#FFF",
+  },
+  reportDivider: {
+    marginTop: 18,
+    marginBottom: 8,
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
   },
 
   topRight: {
@@ -229,32 +228,35 @@ const styles = StyleSheet.create({
   },
   listBox: {
     marginTop: 14,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderRadius: 14,
-    padding: 10,
-    gap: 6,
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    padding: 0,
+    gap: 10,
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    // paddingVertical: 2,
+    paddingHorizontal: 14,
   },
-  rowLeft: {
+  descLine: {
     flex: 1,
-    fontFamily: "Lexend_400Regular",
-    fontSize: 12,
+    fontFamily: "Lexend_300Light",
+    fontSize: 14,
     color: "#FFF",
-    marginRight: 8,
+    marginRight: 4,
   },
-  rowAmt: {
-    fontFamily: "Lexend_600SemiBold",
-    fontSize: 12,
+  signedAmt: {
+    fontFamily: "Lexend_300Light",
+    fontSize: 14,
   },
   credit: { color: "#68F5A4" },
   debit: { color: "#FFB4B4" },
   emptyLine: {
     fontFamily: "Lexend_400Regular",
     fontSize: 12,
+    textAlign: "center",
     color: "rgba(255,255,255,0.7)",
   },
   topEdgeShadow: {
@@ -270,7 +272,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     right: 16,
-    bottom: 36,
+    bottom: 40,
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
@@ -294,5 +296,9 @@ const styles = StyleSheet.create({
     fontFamily: "Lexend_400Regular",
     fontSize: 12,
     color: "rgba(246,246,246,0.8)",
+  },
+  expandedRoundBottom: {
+    borderBottomLeftRadius: RADIUS,
+    borderBottomRightRadius: RADIUS,
   },
 });

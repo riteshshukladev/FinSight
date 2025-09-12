@@ -745,6 +745,29 @@ Return only valid JSON array:`;
     await processBankAndUPITransactions(false);
   };
 
+  // Clear everything and DO NOT auto-start processing
+  const clearAllData = async (): Promise<void> => {
+    setLoading(true);
+    try {
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.PROCESSED_MESSAGES,
+        STORAGE_KEYS.MESSAGE_HASHES,
+        STORAGE_KEYS.LAST_SYNC,
+        STORAGE_KEYS.CATEGORIES.BANK,
+        STORAGE_KEYS.CATEGORIES.UPI,
+      ]);
+      // reset in-memory state
+      setAllMessages([]);
+      setBankMessages([]);
+      setUpiMessages([]);
+      setProcessingLogs([]);
+      setProcessingCutoff(null);
+    } finally {
+      setLoading(false);
+      setProcessing(false);
+    }
+  };
+
   // (KEEP this one) Single forceRefresh definition
   const forceRefresh = async () => {
     setLoading(true);
@@ -803,11 +826,12 @@ Return only valid JSON array:`;
     // Functions
     refreshMessages,
     forceRefresh,
+    clearAllData, // <- expose
     getSyncInfo,
     getTransactionStats,
     // Backward compatibility
     messages: allMessages,
     loadBankMessages: refreshMessages,
-    setProcessingCutoff,  // ensure setter is exposed (if not already)
+    setProcessingCutoff,
   };
 };

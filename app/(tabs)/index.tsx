@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -47,6 +47,7 @@ import { TouchableOpacity } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ProcessingLogsComponent from "../../components/cards/ProcessingLogsComponent";
+import { BlurView } from "expo-blur";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -63,8 +64,8 @@ const GLOBAL_STACK_OFFSET = 4; // push entire stack a little lower
 const FINE_LAYER_SHIFT = 1; // subtle extra drop per depth layer
 const EXTRA_HIDE_SHIFT = 5; // base extra push
 const WEEK_EXTRA_PUSH = 6; // existing week push
-const MONTH_EXTRA_PUSH = 8; // existing month push
-const TODAY_EXTRA_PUSH = 22; // increased (was 10) to push Today card further down
+const MONTH_EXTRA_PUSH = 6; // existing month push
+const TODAY_EXTRA_PUSH = 18; // increased (was 10) to push Today card further down
 const WEEK_DEEPER_PUSH = 10; // NEW additional push for week
 const TODAY_DATA_PUSH = 24; // NEW: overlap Today more when data is available
 
@@ -95,6 +96,9 @@ export default function Deck() {
   const windows = useTransactionWindows(merged);
 
   const [detailCard, setDetailCard] = useState<DetailCard>(null);
+  // bump to force a clean mount of absolute card wrappers after processing -> data
+  const [stackEpoch, setStackEpoch] = useState(0);
+  const prevProcessing = useRef<boolean | null>(null);
 
   // ensure handlers exist (fix ReferenceError)
   const openDetails = (card: DetailCard) => {
@@ -230,88 +234,122 @@ export default function Deck() {
   const emptyTodayHeight = useSharedValue(cardHeight * 3);
   const emptyTodayTop = useSharedValue(quarterTop - cardHeight * 2);
 
+  // Keep EmptyToday backdrop in sync (no-data state) and grow 1x during processing
+  useEffect(() => {
+    if (hasData) return; // only used in no-data branch
+    const baseTop = quarterTop - cardHeight * 2;
+    const baseHeight = cardHeight * 3;
+    const processingTop = quarterTop - cardHeight * 3; // shift up by 1x
+    const processingHeight = cardHeight * 4; // grow to 4x total
+
+    emptyTodayTop.value = withTiming(processing ? processingTop : baseTop, {
+      duration: 250,
+      easing: Easing.out(Easing.quad),
+    });
+    emptyTodayHeight.value = withTiming(
+      processing ? processingHeight : baseHeight,
+      { duration: 250, easing: Easing.out(Easing.quad) }
+    );
+  }, [hasData, processing, quarterTop, cardHeight]);
+
+  const emptyTodayAnimatedStyle = useAnimatedStyle(() => ({
+    top: emptyTodayTop.value,
+    height: emptyTodayHeight.value,
+  }));
+
+  // Backdrop blur opacity (animated)
   const backdropOpacity = useSharedValue(0);
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
+  }));
 
-  // Animate stack into base positions when data loads
+  // Center selected card on expand; restore positions on close
   useEffect(() => {
-    if (!hasData || detailCard) return;
-    const cfg = { damping: 18, stiffness: 180 };
-    tTop.value = withSpring(todayTop, cfg);
-    wTop.value = withSpring(weekTop, cfg);
-    mTop.value = withSpring(monthTop, cfg);
-    qTop.value = withSpring(quarterTop, cfg);
-    tHeight.value = wHeight.value = mHeight.value = qHeight.value = cardHeight;
-  }, [
-    hasData,
-    detailCard,
-    todayTop,
-    weekTop,
-    monthTop,
-    quarterTop,
-    cardHeight,
-  ]);
-
-  // Handle expansion / collapse
-  useEffect(() => {
-    const cfg = { damping: 18, stiffness: 190 };
-    const expand = (topSV: any, heightSV: any) => {
-      topSV.value = withSpring(EXPANSION_TOP_OFFSET, cfg);
-      heightSV.value = withSpring(expandedHeight, cfg);
+    const spring = { damping: 18, stiffness: 190 };
+    const expand = (
+      topSV: Animated.SharedValue<number>,
+      hSV: Animated.SharedValue<number>
+    ) => {
+      // Center inside the stage
+      const stageH = stageHeight;
+      const centerTop = Math.max(8, (stageH - expandedHeight) / 2);
+      topSV.value = withSpring(centerTop, spring);
+      hSV.value = withSpring(expandedHeight, spring);
     };
-    const collapse = (topSV: any, heightSV: any, baseTop: number) => {
-      topSV.value = withSpring(baseTop, cfg);
-      heightSV.value = withSpring(cardHeight, cfg);
+    const collapse = (
+      topSV: Animated.SharedValue<number>,
+      hSV: Animated.SharedValue<number>,
+      baseTop: number
+    ) => {
+      topSV.value = withSpring(baseTop, spring);
+      hSV.value = withSpring(cardHeight, spring);
     };
 
     if (detailCard) {
-      backdropOpacity.value = withTiming(0.55, { duration: 220 });
-      // Expand selected
+      backdropOpacity.value = withTiming(1, {
+        duration: 220,
+        easing: Easing.out(Easing.quad),
+      });
+      // expand only the selected card, collapse others to their base tops
       if (detailCard === "today") expand(tTop, tHeight);
       else collapse(tTop, tHeight, todayTop);
-
       if (detailCard === "week") expand(wTop, wHeight);
       else collapse(wTop, wHeight, weekTop);
-
       if (detailCard === "month") expand(mTop, mHeight);
       else collapse(mTop, mHeight, monthTop);
-
       if (detailCard === "quarter") expand(qTop, qHeight);
       else collapse(qTop, qHeight, quarterTop);
     } else {
-      backdropOpacity.value = withTiming(0, { duration: 180 });
-      // Return all to base (already done by other effect, but ensure)
+      backdropOpacity.value = withTiming(0, {
+        duration: 200,
+        easing: Easing.in(Easing.quad),
+      });
+      // restore all to base positions/heights
       collapse(tTop, tHeight, todayTop);
       collapse(wTop, wHeight, weekTop);
       collapse(mTop, mHeight, monthTop);
       collapse(qTop, qHeight, quarterTop);
     }
-  }, [detailCard]);
+  }, [
+    detailCard,
+    stageHeight,
+    expandedHeight,
+    cardHeight,
+    todayTop,
+    weekTop,
+    monthTop,
+    quarterTop,
+  ]);
 
+  // Immediately reset shared positions when data becomes available
   useEffect(() => {
-    const springConfig = { damping: 20, stiffness: 150 };
+    if (!hasData) return;
+    // snap to correct base positions to avoid off-screen initial paint
+    tTop.value = withTiming(todayTop, { duration: 0 });
+    wTop.value = withTiming(weekTop, { duration: 0 });
+    mTop.value = withTiming(monthTop, { duration: 0 });
+    qTop.value = withTiming(quarterTop, { duration: 0 });
+    tHeight.value = wHeight.value = mHeight.value = qHeight.value = cardHeight;
+  }, [hasData, todayTop, weekTop, monthTop, quarterTop, cardHeight]);
 
+  // Clear any open detail state and backdrop while (re)processing
+  useEffect(() => {
     if (processing) {
-      // Extend height AND move top upward when processing starts
-      emptyTodayHeight.value = withSpring(cardHeight * 4, springConfig);
-      emptyTodayTop.value = withSpring(
-        quarterTop - cardHeight * 3,
-        springConfig
-      );
-    } else {
-      // Return to normal height and position when processing ends
-      emptyTodayHeight.value = withSpring(cardHeight * 3, springConfig);
-      emptyTodayTop.value = withSpring(
-        quarterTop - cardHeight * 2,
-        springConfig
-      );
+      setDetailCard(null);
+      backdropOpacity.value = 0;
     }
-  }, [processing, cardHeight, quarterTop]);
+  }, [processing]);
 
-  // Replace the existing emptyTodayAnimatedStyle with this:
-  const emptyTodayAnimatedStyle = useAnimatedStyle(() => ({
-    height: emptyTodayHeight.value,
-    top: emptyTodayTop.value,
-  }));
+  // When processing finishes (or hasData flips), force a fresh mount of card shells
+  useEffect(() => {
+    if (prevProcessing.current === true && processing === false) {
+      setStackEpoch((n) => n + 1);
+    }
+    prevProcessing.current = !!processing;
+  }, [processing]);
+  useEffect(() => {
+    if (hasData) setStackEpoch((n) => n + 1);
+  }, [hasData]);
 
   // Animated styles
   const animToday = useAnimatedStyle(() => ({
@@ -320,7 +358,8 @@ export default function Deck() {
     zIndex: detailCard === "today" ? 100 : 1,
     left: 0,
     right: 0,
-    opacity: detailCard && detailCard !== "today" ? 0 : 1,
+    // keep others visible so BlurView can blur them
+    opacity: 1,
   }));
   const animWeek = useAnimatedStyle(() => ({
     top: wTop.value,
@@ -328,7 +367,7 @@ export default function Deck() {
     zIndex: detailCard === "week" ? 100 : 2,
     left: 0,
     right: 0,
-    opacity: detailCard && detailCard !== "week" ? 0 : 1,
+    opacity: 1,
   }));
   const animMonth = useAnimatedStyle(() => ({
     top: mTop.value,
@@ -336,21 +375,15 @@ export default function Deck() {
     zIndex: detailCard === "month" ? 100 : 3,
     left: 0,
     right: 0,
-    opacity: detailCard && detailCard !== "month" ? 0 : 1,
+    opacity: 1,
   }));
-
   const animQuarter = useAnimatedStyle(() => ({
     top: qTop.value,
     height: qHeight.value,
-    zIndex: detailCard === "quarter" ? 100 : 4, // quarter front (unchanged)
+    zIndex: detailCard === "quarter" ? 100 : 4,
     left: 0,
     right: 0,
-    opacity: detailCard && detailCard !== "quarter" ? 0 : 1,
-  }));
-
-  const backdropStyle = useAnimatedStyle(() => ({
-    opacity: backdropOpacity.value,
-    pointerEvents: backdropOpacity.value > 0.01 ? "auto" : "none",
+    opacity: 1,
   }));
 
   // Stage height to accommodate lowest card
@@ -384,175 +417,46 @@ export default function Deck() {
     quarter: windows.twoMonths,
   };
 
-  const DetailOverlay = () => {
-    if (!detailCard) return null;
-    const summary = summaries[detailCard];
-    const list = summary?.top || [];
-    return (
-      <Animated.View
-        style={{
-          ...StyleSheet.absoluteFillObject,
-          zIndex: 50,
-          backgroundColor: "rgba(0,0,0,0.55)",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={() => setDetailCard(null)}
-        />
-        <View
-          style={{
-            width: "90%",
-            maxHeight: "70%",
-            backgroundColor: "#181818",
-            borderRadius: 28,
-            padding: 20,
-          }}
-        >
-          <View
-            style={{
-              position: "absolute",
-              right: 12,
-              top: 12,
-              zIndex: 10,
-            }}
-          >
-            <TouchableOpacity
-              onPress={() => setDetailCard(null)}
-              activeOpacity={0.85}
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 19,
-                backgroundColor: "rgba(255,255,255,0.15)",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Ionicons name="close" size={22} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-          <Text
-            style={{
-              fontFamily: "Lexend_600SemiBold",
-              fontSize: 24,
-              color: "#FFF",
-              marginRight: 46,
-            }}
-          >
-            {detailCard === "quarter"
-              ? "Quarterly Transactions"
-              : detailCard === "month"
-                ? "Month’s Transactions"
-                : detailCard === "week"
-                  ? "Week’s Transactions"
-                  : "Today’s Activity"}
-          </Text>
-          <Text
-            style={{
-              marginTop: 6,
-              fontFamily: "Lexend_400Regular",
-              fontSize: 14,
-              color: "rgba(255,255,255,0.85)",
-            }}
-          >
-            {summary
-              ? `${summary.totalCount} tx | ₹${summary.totalCredit} in / ₹${summary.totalDebit} out`
-              : "No data"}
-          </Text>
-
-          <ScrollView
-            style={{ marginTop: 16 }}
-            contentContainerStyle={{ paddingBottom: 8, gap: 8 }}
-          >
-            {(!summary || summary.top.length === 0) && (
-              <Text
-                style={{
-                  fontFamily: "Lexend_400Regular",
-                  fontSize: 14,
-                  color: "rgba(255,255,255,0.7)",
-                  textAlign: "center",
-                  marginTop: 12,
-                }}
-              >
-                No transactions in this period
-              </Text>
-            )}
-            {list.map((t: any, i: number) => (
-              <View
-                key={i}
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.08)",
-                  borderRadius: 14,
-                  padding: 12,
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    flex: 1,
-                    fontFamily: "Lexend_400Regular",
-                    fontSize: 12,
-                    color: "#FFF",
-                    marginRight: 10,
-                  }}
-                  numberOfLines={1}
-                >
-                  {t.description || t.merchant || t.category || "—"}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: "Lexend_600SemiBold",
-                    fontSize: 12,
-                    color:
-                      (t.type || "").toUpperCase() === "CREDIT"
-                        ? "#68F5A4"
-                        : "#FFB4B4",
-                  }}
-                >
-                  {(t.type || "").toUpperCase() === "CREDIT" ? "+" : "-"}₹
-                  {Math.abs(parseFloat(String(t.amount)) || 0).toLocaleString(
-                    "en-IN"
-                  )}
-                </Text>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      </Animated.View>
-    );
-  };
-
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar barStyle="light-content" />
       <View style={[styles.bottomWrap, { paddingBottom: bottomPad }]}>
         <View style={[styles.stage, { height: STAGE_HEIGHT }]}>
+          {/* Backdrop blur sits above non-expanded stack, below expanded card */}
+          {detailCard && (
+            <Animated.View
+              pointerEvents="auto"
+              style={[
+                StyleSheet.absoluteFillObject,
+                styles.backdrop,
+                styles.backdropElevated, // ensure it's above non-expanded cards on Android
+                { zIndex: 50 },
+                backdropStyle,
+              ]}
+            >
+              <BlurView
+                intensity={80}
+                tint={Platform.OS === "ios" ? "systemThinMaterialDark" : "dark"}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <Pressable
+                style={StyleSheet.absoluteFillObject}
+                onPress={closeDetails}
+              />
+            </Animated.View>
+          )}
+
           {hasData ? (
             <>
-              {/* Backdrop ONLY when a detailCard is active */}
-              {detailCard && (
-                <Animated.View
-                  pointerEvents="auto"
-                  style={[
-                    StyleSheet.absoluteFillObject,
-                    {
-                      backgroundColor: "rgba(0,0,0,0.55)",
-                      zIndex: 50,
-                      opacity: backdropOpacity.value,
-                    },
-                  ]}
-                >
-                  <Pressable style={{ flex: 1 }} onPress={closeDetails} />
-                </Animated.View>
-              )}
-
               {/* Today */}
-              <Animated.View style={[styles.absSlot, animToday]}>
+              <Animated.View
+                key={`today-${stackEpoch}`}
+                style={[
+                  styles.absSlot,
+                  animToday,
+                  detailCard === "today" && styles.expandedCardSurface, // stay above blur
+                ]}
+              >
                 <TodayTransactionCard
                   summary={windows.today}
                   hasData
@@ -570,7 +474,14 @@ export default function Deck() {
               </Animated.View>
 
               {/* Week */}
-              <Animated.View style={[styles.absSlot, animWeek]}>
+              <Animated.View
+                key={`week-${stackEpoch}`}
+                style={[
+                  styles.absSlot,
+                  animWeek,
+                  detailCard === "week" && styles.expandedCardSurface,
+                ]}
+              >
                 <WeekTransactionCard
                   summary={windows.week}
                   hasData
@@ -589,7 +500,14 @@ export default function Deck() {
               </Animated.View>
 
               {/* Month */}
-              <Animated.View style={[styles.absSlot, animMonth]}>
+              <Animated.View
+                key={`month-${stackEpoch}`}
+                style={[
+                  styles.absSlot,
+                  animMonth,
+                  detailCard === "month" && styles.expandedCardSurface,
+                ]}
+              >
                 <MonthTransactionCard
                   summary={windows.month}
                   hasData
@@ -607,7 +525,14 @@ export default function Deck() {
               </Animated.View>
 
               {/* Quarter */}
-              <Animated.View style={[styles.absSlot, animQuarter]}>
+              <Animated.View
+                key={`quarter-${stackEpoch}`}
+                style={[
+                  styles.absSlot,
+                  animQuarter,
+                  detailCard === "quarter" && styles.expandedCardSurface,
+                ]}
+              >
                 <QuarterlyTransactionCard
                   summary={windows.twoMonths}
                   hasData
@@ -685,10 +610,14 @@ export default function Deck() {
           )}
         </View>
       </View>
-      <DetailOverlay />
+      {/* DetailOverlay removed */}
+      {/* <DetailOverlay /> */}
     </SafeAreaView>
   );
 }
+
+// Remove the modal overlay content entirely
+const DetailOverlay = () => null;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0F0F0F" },
@@ -703,5 +632,16 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
+  },
+  backdrop: {
+    backgroundColor: "transparent", // ensure blur is unobstructed
+  },
+  // Android stacks by elevation; lift the blur above non-expanded cards (which use elevation ~8)
+  backdropElevated: {
+    elevation: 12,
+  },
+  // Lift the expanded card wrapper above the blur overlay
+  expandedCardSurface: {
+    elevation: 24,
   },
 });

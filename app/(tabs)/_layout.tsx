@@ -20,7 +20,7 @@ export default function TabLayout() {
         ),
         tabBarStyle: {
           backgroundColor: isDark ? "#181818" : "white",
-          elevation: 0,
+          // elevation: 0,
           shadowColor: isDark ? "#fff" : "#000",
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
@@ -29,23 +29,39 @@ export default function TabLayout() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: Platform.OS === "ios" ? 95 : 75,
-          paddingBottom: Platform.OS === "ios" ? 25 : 15,
-          paddingTop: 12,
-          paddingHorizontal: 10,
+          height: Platform.OS === "ios" ? 64 : 56,
+          paddingTop: 10,
           borderTopWidth: 0.5,
           borderTopColor: isDark ? "#333" : "#e0e0e0",
+          alignItems: "center",
+        },
+        tabBarItemStyle: {
+          flex: 1,
+          minWidth: 0, // allow label to use full available width
+          justifyContent: "center",
+          alignItems: "center",
+          height: Platform.OS === "ios" ? 52 : 44,
+          paddingVertical: 0,
         },
         tabBarLabelStyle: {
           fontFamily: "Lexend_400Regular",
-          fontSize: 10,
-          paddingBottom: 6,
+          fontSize: 12,
+          lineHeight: 14,
           fontWeight: "500",
-          marginTop: 2,
           color: isDark ? "#fff" : "#222",
+          textAlign: "center",
+          includeFontPadding: false,
+          textAlignVertical: "center",
+          paddingVertical: 0,
+          marginTop: 0,
+          marginBottom: 0,
         },
+        // Remove icon placeholder space entirely
         tabBarIconStyle: {
-          marginBottom: 2,
+          width: 0,
+          height: 0,
+          margin: 0,
+          display: "none",
         },
         headerShown: false,
       }}
@@ -61,7 +77,6 @@ export default function TabLayout() {
         name="messages"
         options={{
           title: "Messages",
-
           tabBarIcon: () => null,
         }}
       />
