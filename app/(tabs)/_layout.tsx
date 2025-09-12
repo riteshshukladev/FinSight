@@ -30,7 +30,7 @@ export default function TabLayout() {
           left: 0,
           right: 0,
           height: Platform.OS === "ios" ? 64 : 56,
-          paddingTop: 10,
+          paddingTop: 14,
           borderTopWidth: 0.5,
           borderTopColor: isDark ? "#333" : "#e0e0e0",
           alignItems: "center",
@@ -69,7 +69,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Stats",
+          title: "Home",
           tabBarIcon: () => null,
         }}
       />
