@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   View,
   useColorScheme,
+  Alert,
 } from "react-native";
 import LoadingOverlay from "@/components/LoadingOverlay";
 import EmptyMessagesList from "@/components/EmptyMessageList";
@@ -64,6 +65,30 @@ export default function MessagesTab() {
     processing,
     processingLogs,
   } = smsData;
+
+  const isEmpty =
+    !loading && !processing && (!messages || messages.length === 0);
+
+  const onProcess = () => {
+    if (processing) return;
+    Alert.alert(
+      "Process Messages",
+      "We’ll scan your SMS and extract Bank/UPI transactions.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Process",
+          onPress: async () => {
+            try {
+              await forceRefresh?.();
+            } catch (e) {
+              Alert.alert("Error", String(e));
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const renderTransactionItem = ({ item }: any) => (
     <View
@@ -133,8 +158,12 @@ export default function MessagesTab() {
       style={[styles.container, isDark && styles.containerDark]}
       edges={["top"]}
     >
+      {/* header + refresh row */}
       <View style={[styles.header, isDark && styles.headerDark]}>
         <View style={styles.subheader}>
+          <Text style={[styles.subtitle, isDark && styles.subtitleDark]}>
+            Total Messages: {messages?.length || 0}
+          </Text>
           <TouchableOpacity onPress={loadBankMessages} disabled={loading}>
             <Text
               style={[
@@ -142,55 +171,132 @@ export default function MessagesTab() {
                 isDark && styles.refreshButtonTextDark,
               ]}
             >
-              {loading ? "Loading..." : "refresh"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={forceRefresh} disabled={loading}>
-            <Text
-              style={[
-                styles.refreshButtonText,
-                isDark && styles.refreshButtonTextDark,
-              ]}
-            >
-              {loading ? "Loading..." : "clear cache"}
+              {loading ? "refreshing" : "refresh Messages"}
             </Text>
           </TouchableOpacity>
         </View>
-
-        <Text style={[styles.subtitle, isDark && styles.subtitleDark]}>
-          Total Messages: {messages?.length || 0}
-        </Text>
       </View>
 
-      <LoadingOverlay
-        visible={loading || processing}
-        isDark={isDark}
-        fontsLoaded={fontsLoaded}
-        loadingText={processing ? "Processing Messages..." : "Loading..."}
-        subText={processing ? null : undefined}
-        processingLogs={processingLogs || []}
-      />
-
-      <FlatList
-        data={messages || []}
-        keyExtractor={(item) =>
-          item._id?.toString() || Math.random().toString()
-        }
-        renderItem={renderTransactionItem}
-        refreshing={loading}
-        onRefresh={loadBankMessages}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={
-          <EmptyMessagesList
-            loading={loading}
-            isDark={isDark}
-            onRefresh={loadBankMessages}
-            fontsLoaded={fontsLoaded}
-            processingLogs={processingLogs}
-          />
-        }
-      />
+      {/* processing/loading/content */}
+      {processing ? (
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 24,
+            gap: 6,
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: "Lexend_400Regular",
+              fontSize: 16,
+              color: isDark ? "#CDCDCD" : "#222",
+              textAlign: "center",
+            }}
+          >
+            processing messages...
+          </Text>
+          <Text
+            style={{
+              fontFamily: "Lexend_300Light",
+              fontSize: 13,
+              color: isDark ? "#AFAFAF" : "#444",
+              textAlign: "center",
+            }}
+          >
+            to see logs, go on home page
+          </Text>
+        </View>
+      ) : loading ? (
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 24,
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: "Lexend_400Regular",
+              fontSize: 16,
+              color: isDark ? "#CDCDCD" : "#222",
+              textAlign: "center",
+            }}
+          >
+            ...loading
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={messages || []}
+          keyExtractor={(item) =>
+            item._id?.toString() || Math.random().toString()
+          }
+          renderItem={renderTransactionItem}
+          refreshing={loading}
+          onRefresh={loadBankMessages}
+          contentContainerStyle={[
+            styles.listContainer,
+            isEmpty && { flexGrow: 1, justifyContent: "center" },
+          ]}
+          ListEmptyComponent={
+            isEmpty ? (
+              <View
+                style={{
+                  alignItems: "center",
+                  justifyContent: "center",
+                  alignSelf: "stretch",
+                  paddingHorizontal: 24,
+                  gap: 16,
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: "Lexend_400Regular",
+                    fontSize: 16,
+                    color: isDark ? "#CDCDCD" : "#222",
+                    textAlign: "center",
+                  }}
+                >
+                  Looks Like their are no messages to see.
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={onProcess}
+                  style={{
+                    paddingHorizontal: 18,
+                    paddingVertical: 11,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: isDark
+                      ? "rgba(251, 251, 251, 0.961)"
+                      : "rgba(0,0,0,0.25)",
+                    backgroundColor: isDark
+                      ? "rgba(71, 71, 71, 0.18)"
+                      : "rgba(0,0,0,0.06)",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: "Lexend_500Medium",
+                      fontSize: 12,
+                      letterSpacing: 0.2,
+                      color: isDark ? "#FFF" : "#000",
+                      textTransform: "uppercase",
+                      textAlign: "center",
+                    }}
+                  >
+                    process
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }

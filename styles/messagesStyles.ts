@@ -13,7 +13,7 @@ export const styles = StyleSheet.create({
     flexDirection: "column",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 4,
+    paddingVertical: 8,
     paddingHorizontal: 20,
     gap: 8,
     backgroundColor: "rgba(241, 241, 241, 0.7)",
@@ -51,7 +51,7 @@ export const styles = StyleSheet.create({
     paddingBottom: 0.5,
     borderBottomColor: "black",
     borderBottomWidth: 1,
-    fontFamily: "Lexend_400Regular",
+    fontFamily: "Lexend_300Light",
     lineHeight: 20,
     includeFontPadding: false, // Android fix
     textAlignVertical: 'center', // Android fix
@@ -60,7 +60,7 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     color: "#fff",
     borderBottomColor: "white",
-    borderBottomWidth: 1,
+    borderBottomWidth: .5,
   },
 
   // Add padding for list items

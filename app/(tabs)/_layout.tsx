@@ -19,7 +19,7 @@ export default function TabLayout() {
           />
         ),
         tabBarStyle: {
-          backgroundColor: isDark ? "#181818" : "white",
+          backgroundColor: "#181818",
           // elevation: 0,
           shadowColor: isDark ? "#fff" : "#000",
           shadowOffset: { width: 0, height: -2 },
@@ -32,7 +32,7 @@ export default function TabLayout() {
           height: Platform.OS === "ios" ? 64 : 56,
           paddingTop: 14,
           borderTopWidth: 0.5,
-          borderTopColor: isDark ? "#333" : "#e0e0e0",
+          borderTopColor: isDark ? "#333" : "#e0e0e016",
           alignItems: "center",
         },
         tabBarItemStyle: {
@@ -48,7 +48,7 @@ export default function TabLayout() {
           fontSize: 12,
           lineHeight: 14,
           fontWeight: "500",
-          color: isDark ? "#fff" : "#222",
+          color: "#fff",
           textAlign: "center",
           includeFontPadding: false,
           textAlignVertical: "center",
