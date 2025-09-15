@@ -1,22 +1,25 @@
 import React, { createContext, useContext, useEffect } from "react";
-import { useEnhancedSMSData } from "./useSMSData"; // <-- use the correct hook
+import { useEnhancedSMSData } from "./useSMSData";
 import type { UseEnhancedSMSDataReturn } from "@/types/type";
 const SMSDataContext = createContext<UseEnhancedSMSDataReturn | null>(null);
 
 export const SMSDataProvider: React.FC<React.PropsWithChildren<{}>> = ({
   children,
 }) => {
-  const smsData = useEnhancedSMSData(); // <-- use the correct hook
+  const smsData = useEnhancedSMSData();
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (smsData && smsData.refreshMessages) {
-        smsData.refreshMessages();
-      }
-    }, 12 * 60 * 60 * 1000); // 12 hours in ms
-
+    const interval = setInterval(
+      () => {
+        if (smsData?.refreshNewOnly && !smsData.processing) {
+          smsData.refreshNewOnly(); // silent incremental
+        }
+      },
+      5 * 60 * 1000
+    ); // every 5 minutes (testing)
     return () => clearInterval(interval);
   }, [smsData]);
+
   return (
     <SMSDataContext.Provider value={smsData}>
       {children}

@@ -436,25 +436,17 @@ interface RawMessage {
   body: string;
 }
 
-interface BatchMessage extends RawMessage {
-  id?: string;
-  hash?: string;
-}
+interface BatchMessage extends RawMessage { /* ...existing code... */ }
+interface ClassifiedMessage extends TransactionResult { /* ...existing code... */ }
 
-interface ClassifiedMessage extends TransactionResult {
-  date: Date;
-  id: string;
-  hash: string;
-  processedAt: string;
-  rawSender: string;
-  batchNumber: number;
-  address: string;
-  body: string;
-}
-
-const classifyBankAndUPITransactions = async (rawMessages: RawMessage[]): Promise<ClassifiedMessage[]> => {
-  try {
-    setProcessing(true);
+// Make classification optionally "silent" (won't toggle global processing)
+const classifyBankAndUPITransactions = async (
+  rawMessages: RawMessage[],
+  opts?: { silent?: boolean }
+): Promise<ClassifiedMessage[]> => {
+  const silent = !!opts?.silent;
+   try {
+    if (!silent) setProcessing(true);
     
     const storedHashes: string[] = await getStoredHashes();
     const newMessages: RawMessage[] = rawMessages.filter(msg => 
@@ -578,7 +570,70 @@ Return only valid JSON array:`;
     addProcessingLogs(`Error in Bank/UPI classification: ${error instanceof Error ? error.message : String(error)}`);
     return [];
   } finally {
-    setProcessing(false);
+    if (!silent) setProcessing(false);
+  }
+};
+
+// Utility to fetch SMS since a timestamp (ms)
+const listSince = async (minDate: number) => {
+  if (!hasPermission || !SmsAndroid) return [];
+  setLoading(true);
+  return new Promise((resolve) => {
+    interface SMSMessage { box: "inbox"; maxCount: number; minDate: number; }
+    interface SMSItem { address: string; date: string; body: string; }
+    type SMSFailureCallback = (error: string) => void;
+    type SMSSuccessCallback = (count: number, smsList: string) => void;
+    SmsAndroid.list(
+      JSON.stringify({ box: "inbox", maxCount: 2000, minDate } as SMSMessage),
+      ((fail: string) => {
+        console.log("Failed to list SMS:", fail);
+        setLoading(false);
+        resolve([]);
+      }) as SMSFailureCallback,
+      ((count: number, smsList: string) => {
+        try {
+          const arr: SMSItem[] = JSON.parse(smsList);
+          resolve(arr);
+        } catch (err) {
+          console.warn("Failed to parse SMS list:", err);
+          resolve([]);
+        } finally {
+          setLoading(false);
+        }
+      }) as SMSSuccessCallback
+    );
+  });
+};
+
+// Incremental refresh: process only new/unprocessed messages since last sync (silent)
+const refreshNewOnly = async (): Promise<void> => {
+  try {
+    const lastSyncStr = await AsyncStorage.getItem(STORAGE_KEYS.LAST_SYNC);
+    let since = lastSyncStr ? parseInt(lastSyncStr) : 0;
+    if (!since || Number.isNaN(since)) {
+      const d = new Date(); d.setHours(0, 0, 0, 0);
+      since = d.getTime();
+    }
+
+    const raw = await listSince(since);
+    const safeRaw = Array.isArray(raw) ? raw : [];
+    if (safeRaw.length === 0) return;
+
+    const newClassified = await classifyBankAndUPITransactions(safeRaw as any, { silent: true });
+    if (newClassified.length === 0) return;
+
+    const existingMessages = await loadCategorizedMessages();
+    const allMessagesMerged = [
+      ...(Array.isArray(existingMessages) ? existingMessages : []),
+      ...newClassified,
+    ];
+    const uniqueMessages = allMessagesMerged.filter(
+      (msg, index, self) => index === self.findIndex((m) => m.hash === msg.hash)
+    );
+    uniqueMessages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    await saveCategorizedMessages(uniqueMessages);
+  } catch (e) {
+    console.warn("refreshNewOnly failed:", e);
   }
 };
 
@@ -826,7 +881,8 @@ Return only valid JSON array:`;
     // Functions
     refreshMessages,
     forceRefresh,
-    clearAllData, // <- expose
+    clearAllData,
+    refreshNewOnly, // <- expose silent incremental refresher
     getSyncInfo,
     getTransactionStats,
     // Backward compatibility

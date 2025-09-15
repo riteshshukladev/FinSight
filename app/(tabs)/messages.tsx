@@ -60,7 +60,7 @@ export default function MessagesTab() {
   const {
     messages,
     loading,
-    loadBankMessages,
+    refreshNewOnly,
     forceRefresh,
     processing,
     processingLogs,
@@ -158,22 +158,12 @@ export default function MessagesTab() {
       style={[styles.container, isDark && styles.containerDark]}
       edges={["top"]}
     >
-      {/* header + refresh row */}
+      {/* header (removed refresh button) */}
       <View style={[styles.header, isDark && styles.headerDark]}>
         <View style={styles.subheader}>
           <Text style={[styles.subtitle, isDark && styles.subtitleDark]}>
             Total Messages: {messages?.length || 0}
           </Text>
-          <TouchableOpacity onPress={loadBankMessages} disabled={loading}>
-            <Text
-              style={[
-                styles.refreshButtonText,
-                isDark && styles.refreshButtonTextDark,
-              ]}
-            >
-              {loading ? "refreshing" : "refresh Messages"}
-            </Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -236,8 +226,8 @@ export default function MessagesTab() {
             item._id?.toString() || Math.random().toString()
           }
           renderItem={renderTransactionItem}
-          refreshing={loading}
-          onRefresh={loadBankMessages}
+          refreshing={false} // keep silent; no global loading flicker
+          onRefresh={refreshNewOnly} // incremental, silent add
           contentContainerStyle={[
             styles.listContainer,
             isEmpty && { flexGrow: 1, justifyContent: "center" },
