@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Fin Man",
-    "slug": "fin-man",
+    "name": "finsight",
+    "slug": "finsight",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",

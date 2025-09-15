@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Image } from "react-native";
 
 interface Props {
   height?: number; // now optional
@@ -17,7 +17,11 @@ export default function EmptyTodayComponent({ height }: Props) {
     >
       <View style={styles.headerBlock}>
         <View style={styles.logoCircle}>
-          <Text style={styles.logoText}>FS</Text>
+          <Image
+            source={require("../../assets/images/icon-finsight.png")}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
         <Text style={styles.appTitle}>finsight</Text>
         <Text style={styles.subtitle}>
@@ -54,7 +58,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   appTitle: {
-    fontFamily: "Lexend_500Medium",
+    fontFamily: "Lexend_300Light",
     fontSize: 22,
     color: "#FFF",
     letterSpacing: 0.8,
@@ -62,19 +66,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "rgba(0,0,0,0.22)",
+    // remove dark background and let the image define its size
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 18,
   },
-  logoText: {
-    fontFamily: "Lexend_700Bold",
-    fontSize: 30,
-    color: "#FFF",
-    letterSpacing: 1,
+  logoImage: {
+    width: 80, // larger, clearer logo
+    height: 80,
   },
   subtitle: {
     marginTop: 10,

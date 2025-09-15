@@ -27,7 +27,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="finman"/>
-        <data android:scheme="exp+fin-man"/>
+        <data android:scheme="exp+finsight"/>
       </intent-filter>
     </activity>
   </application>
