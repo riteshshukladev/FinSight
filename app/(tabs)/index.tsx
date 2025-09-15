@@ -1,16 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  StyleSheet,
-  View,
   StatusBar,
   UIManager,
   Platform,
-  LayoutAnimation,
-  Pressable,
-  ScrollView,
-  Text,
-  useWindowDimensions,
   PixelRatio,
+  useWindowDimensions,
+  Pressable,
+  StyleSheet,
+  useColorScheme,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SplashScreen from "expo-splash-screen";
@@ -74,6 +72,9 @@ type DetailCard = "today" | "week" | "month" | "quarter" | null;
 const DEFAULT_TABBAR_HEIGHT = Platform.OS === "ios" ? 95 : 75; // Seed a stable tab bar height to prevent initial layout jump
 
 export default function Deck() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   const [fontsLoaded] = useFonts({
     Lexend_300Light,
     Lexend_400Regular,
@@ -418,7 +419,10 @@ export default function Deck() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView
+      style={[styles.container, !isDark && styles.containerLight]}
+      edges={["top"]}
+    >
       <StatusBar barStyle="light-content" />
       <View style={[styles.bottomWrap, { paddingBottom: bottomPad }]}>
         <View style={[styles.stage, { height: STAGE_HEIGHT }]}>
@@ -610,8 +614,6 @@ export default function Deck() {
           )}
         </View>
       </View>
-      {/* DetailOverlay removed */}
-      {/* <DetailOverlay /> */}
     </SafeAreaView>
   );
 }
@@ -621,6 +623,7 @@ const DetailOverlay = () => null;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0F0F0F" },
+  containerLight: { backgroundColor: "rgba(218, 218, 218, 0.74)" },
   bottomWrap: {
     flex: 1,
     justifyContent: "flex-start",
