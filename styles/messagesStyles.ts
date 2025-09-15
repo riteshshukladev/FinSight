@@ -29,7 +29,7 @@ export const styles = StyleSheet.create({
   subheader: {
     flexDirection: "row",
     width: "100%",
-    justifyContent: "space-between",
+    justifyContent: "center",
     alignItems: "center",
   },
 

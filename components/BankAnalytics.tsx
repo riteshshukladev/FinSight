@@ -1,12 +1,11 @@
 import React from "react";
-import { Text, View, Dimensions, ScrollView } from "react-native";
+import { Text, View, ScrollView, useWindowDimensions } from "react-native";
 import { BarChart, LineChart, PieChart } from "react-native-chart-kit";
 import { useBankAnalytics } from "../hooks/useBankAnalytics";
 import { styles } from "../styles/bankAnalyticsStyles";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LoadingOverlay from "@/components/LoadingOverlay";
 
-const { width: screenWidth } = Dimensions.get("window");
 import { SMSMessage } from "@/types/type";
 
 import {
@@ -17,12 +16,6 @@ import {
   Lexend_600SemiBold,
   Lexend_700Bold,
 } from "@expo-google-fonts/lexend";
-
-// Calculate chart width accounting for all padding and margins
-const CONTAINER_PADDING = 4;
-const CHART_CONTAINER_PADDING = 4;
-const CHART_WIDTH =
-  screenWidth - CONTAINER_PADDING * 2 - CHART_CONTAINER_PADDING * 2;
 
 // Header Stats Component
 type Props = {
@@ -468,7 +461,11 @@ export const TransactionsTable = ({
 
 // Main Component
 const BankAnalytics = ({ transactions = [] }: Props) => {
-  // Use the custom analytics hook
+  const { width: screenWidth } = useWindowDimensions();
+  const CONTAINER_PADDING = 4;
+  const CHART_CONTAINER_PADDING = 4;
+  const CHART_WIDTH =
+    screenWidth - CONTAINER_PADDING * 2 - CHART_CONTAINER_PADDING * 2;
 
   // Load multiple font weights
   let [fontsLoaded] = useFonts({
@@ -514,16 +511,19 @@ const BankAnalytics = ({ transactions = [] }: Props) => {
           pieChartData={pieChartData}
           chartConfig={chartConfig}
           isDark={isDark}
+          width={CHART_WIDTH}
         />
         <MonthlyLineChart
           barChartData={barChartData}
           chartConfig={chartConfig}
           isDark={isDark}
+          width={CHART_WIDTH}
         />
         <WeeklyTrendChart
           lineChartData={lineChartData}
           chartConfig={chartConfig}
           isDark={isDark}
+          width={CHART_WIDTH}
         />
         <TopMerchants analytics={analytics} isDark={isDark} />
         <TransactionsTable analytics={analytics} isDark={isDark} />

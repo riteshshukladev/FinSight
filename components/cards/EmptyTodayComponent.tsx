@@ -24,6 +24,10 @@ export default function EmptyTodayComponent({ height }: Props) {
           {"Smart finance, simplified.\n"}
           {"We’ll scan your SMS and organize transactions with AI."}
         </Text>
+        <Text style={styles.footerNote}>
+          Auto‑refresh runs every 5 minutes. Pull down on the Messages page to
+          refresh manually.
+        </Text>
       </View>
     </View>
   );

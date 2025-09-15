@@ -152,7 +152,7 @@ export default function QuarterlyTransactionCard({
           {isDetailsOpen && showSummary && (
             <>
               <Text style={styles.reportTitle}>
-                Two months transaction report
+                Quarterly transaction report
               </Text>
               <View style={styles.reportDivider} />
             </>
@@ -254,7 +254,7 @@ export default function QuarterlyTransactionCard({
               <Text style={styles.cutoffBtnText}>
                 {processingCutoff
                   ? processingCutoff.toLocaleDateString()
-                  : "Last 2 months"}
+                  : "Last 3 months"}
               </Text>
             </TouchableOpacity>
             {/* Removed clear (×) button */}

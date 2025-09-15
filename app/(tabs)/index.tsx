@@ -538,7 +538,7 @@ export default function Deck() {
                 ]}
               >
                 <QuarterlyTransactionCard
-                  summary={windows.twoMonths}
+                  summary={windows.quarter}
                   hasData
                   processing={!!processing}
                   fixedHeight={
@@ -564,7 +564,7 @@ export default function Deck() {
                 ]}
               >
                 <QuarterlyTransactionCard
-                  summary={windows.twoMonths}
+                  summary={windows.quarter}
                   hasData={false}
                   processing={!!processing}
                   fixedHeight={cardHeight}

@@ -25,6 +25,7 @@ interface TransactionWindows {
   week: WindowResult;
   month: WindowResult;
   twoMonths: WindowResult;
+  quarter: WindowResult;
 }
 
 const normalizeDate = (d: any): number => {
@@ -66,6 +67,7 @@ export const useTransactionWindows = (all: Tx[] = []): TransactionWindows => {
         week: empty,
         month: empty,
         twoMonths: empty,
+        quarter: empty,
       };
     }
 
@@ -74,6 +76,7 @@ export const useTransactionWindows = (all: Tx[] = []): TransactionWindows => {
     const startWeek = new Date(now); startWeek.setDate(startWeek.getDate() - 7); startWeek.setHours(0,0,0,0);
     const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startTwoMonths = new Date(now); startTwoMonths.setDate(startTwoMonths.getDate() - 60); startTwoMonths.setHours(0,0,0,0);
+    const startQuarter = new Date(now); startQuarter.setDate(startQuarter.getDate() - 90); startQuarter.setHours(0, 0, 0, 0);
 
     const sorted = [...all].sort((a,b) => normalizeDate(b.date) - normalizeDate(a.date));
 
@@ -87,12 +90,14 @@ export const useTransactionWindows = (all: Tx[] = []): TransactionWindows => {
     const weekTx = inRange(startWeek);
     const monthTx = inRange(startMonth);
     const twoMonthsTx = inRange(startTwoMonths);
+    const quarterTx = inRange(startQuarter);
 
     return {
       today: summarize(todayTx, 5),
       week: summarize(weekTx, 5),
       month: summarize(monthTx, 4),
       twoMonths: summarize(twoMonthsTx, 5),
+      quarter: summarize(quarterTx, 5),
     };
   }, [all]);
 };

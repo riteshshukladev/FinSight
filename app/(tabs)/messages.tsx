@@ -22,6 +22,7 @@ import {
   Lexend_700Bold,
 } from "@expo-google-fonts/lexend";
 import { styles } from "@/styles/messagesStyles";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 
 export default function MessagesTab() {
   // Load multiple font weights
@@ -137,6 +138,9 @@ export default function MessagesTab() {
     </View>
   );
 
+  const tabBarHeight = useBottomTabBarHeight();
+  const bottomPad = tabBarHeight; // pad exactly as tab bar height
+
   if (!fontsLoaded) {
     return (
       <SafeAreaView
@@ -231,7 +235,9 @@ export default function MessagesTab() {
           contentContainerStyle={[
             styles.listContainer,
             isEmpty && { flexGrow: 1, justifyContent: "center" },
+            { paddingBottom: bottomPad }, // ensure tab doesn't cut items
           ]}
+          scrollIndicatorInsets={{ bottom: bottomPad }}
           ListEmptyComponent={
             isEmpty ? (
               <View
