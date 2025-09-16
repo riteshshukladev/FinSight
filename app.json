@@ -1,84 +1,15 @@
 {
   "expo": {
     "name": "finsight",
-    "slug": "finsight",
+    "slug": "fin-man",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "finman",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "jsEngine": "hermes",
-    "developmentClient": {
-      "silentLaunch": true
-    },
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.finman.app"
-    },
+    "newArchEnabled": false,
     "android": {
-      "permissions": [
-        "READ_SMS",
-        "RECEIVE_SMS"
-      ],
-      "edgeToEdgeEnabled": true,
-      "package": "com.finman.app",
-      "versionCode": 1
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
-      [
-        "react-native-permissions",
-        {
-          "permissions": {
-            "android": [
-              "READ_SMS",
-              "RECEIVE_SMS"
-            ]
-          }
-        }
-      ],
-      "expo-font",
-      "expo-web-browser",
-      [
-        "expo-font",
-        {
-          "fonts": [
-            "node_modules/@expo-google-fonts/lexend/300Light/Lexand_300Light.ttf",
-            "node_modules/@expo-google-fonts/lexend/400Regular/Lexend_400Regular.ttf",
-            "node_modules/@expo-google-fonts/lexend/500Medium/Lexend_500Medium.ttf",
-            "node_modules/@expo-google-fonts/lexend/600SemiBold/Lexend_600Medium.ttf"
-          ]
-        }
-      ]
-    ],
-    "experiments": {
-      "typedRoutes": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "fa7e050d-13ca-4aa8-b696-14d97747a852"
-      }
-    },
-    "owner": "riteshuklaa"
+      "package": "com.finman.app"
+    }
   }
 }
