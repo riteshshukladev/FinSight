@@ -10,6 +10,11 @@
     "newArchEnabled": false,
     "android": {
       "package": "com.finman.app"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "fa7e050d-13ca-4aa8-b696-14d97747a852"
+      }
     }
   }
 }
