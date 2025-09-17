@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Platform } from 'react-native';
-import { PERMISSIONS, request, RESULTS } from 'react-native-permissions';
+import { PERMISSIONS, request, RESULTS, check, openSettings } from 'react-native-permissions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 let SmsAndroid = null;
@@ -751,19 +751,37 @@ const refreshNewOnly = async (): Promise<void> => {
   // Initialize
   useEffect(() => {
     if (Platform.OS === 'android') {
-      request(PERMISSIONS.ANDROID.READ_SMS)
-        .then((result) => {
-          // navigate.navigate('messages');
-          if (result === RESULTS.GRANTED) {
+      (async () => {
+        try {
+          const current = await check(PERMISSIONS.ANDROID.READ_SMS);
+          if (current === RESULTS.GRANTED) {
             setHasPermission(true);
-            loadCategorizedMessages().then(() => {
-              processBankAndUPITransactions();
-            });
+            await loadCategorizedMessages();
+            await processBankAndUPITransactions();
+            return;
+          }
+
+          const res = await request(PERMISSIONS.ANDROID.READ_SMS);
+          if (res === RESULTS.GRANTED) {
+            setHasPermission(true);
+            await loadCategorizedMessages();
+            await processBankAndUPITransactions();
+          } else if (res === RESULTS.BLOCKED) {
+            Alert.alert(
+              'Permission required',
+              'SMS permission is blocked. Open Settings to grant it.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => openSettings().catch(() => {}) },
+              ]
+            );
           } else {
             Alert.alert('Permission denied', 'Cannot read SMS without permission');
           }
-        })
-        .catch((err) => console.warn('Permission error:', err));
+        } catch (err) {
+          console.warn('Permission error:', err);
+        }
+      })();
     }
   }, []);
 

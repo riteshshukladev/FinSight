@@ -1,3 +1,9 @@
 module.exports = {
-  project: { android: { packageName: "com.finman.app" } },
+  project: {
+    android: {
+      sourceDir: "./android",
+      appName: "app",
+      packageName: "com.finman.app",
+    },
+  },
 };
