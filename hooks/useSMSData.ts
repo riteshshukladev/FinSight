@@ -224,6 +224,7 @@ const callAIService = async (prompt: string, retryCount: number = 0): Promise<Tr
   const maxRetries: number = 2;
   
   try {
+    // Think i missed, think again!! It's free bros
     const API_KEY: string = "AIzaSyDZ0NzMwfIuPBpoeuE6s6E00KXANQvP0Fg"; 
     const MODEL_ID: string = "gemini-2.5-flash-preview-05-20";
     const endpoint: string = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:generateContent?key=${API_KEY}`;
